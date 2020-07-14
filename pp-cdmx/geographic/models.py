@@ -14,11 +14,10 @@ class TownHall(models.Model):
         max_length=30,
         verbose_name=u"Nombre")
     short_name = models.CharField(
-        max_length=12,
+        max_length=12, blank=True, null=True,
         verbose_name=u"Nombre Corto")
     image = models.ImageField(
-        blank=True,
-        null=True,
+        blank=True, null=True,
         upload_to="townhall",
         verbose_name=u"Imagen")
 
@@ -31,16 +30,12 @@ class TownHall(models.Model):
 
 
 class TownHallGeoData(models.Model):
-    townhall = models.OneToOneField(
-        TownHall,
-        verbose_name=u"Alcaldia")
-    geo_point = models.TextField(
-        verbose_name=u"geo point")
-    geo_shape = models.TextField(
-        verbose_name=u"geo shape")
+    townhall = models.OneToOneField(TownHall, verbose_name=u"Alcaldia")
+    geo_point = models.TextField(verbose_name=u"geo point")
+    geo_shape = models.TextField(verbose_name=u"geo shape")
 
     def __unicode__(self):
-        return self.townhall
+        return unicode(self.townhall)
 
 
 class SuburbType(models.Model):
@@ -48,19 +43,13 @@ class SuburbType(models.Model):
         max_length=120,
         verbose_name=u"Nombre")
     abrev = models.CharField(
-        blank=True,
-        null=True,
-        max_length=40,
+        max_length=40, blank=True, null=True,
         verbose_name=u"Abreviatura")
     icon = models.CharField(
-        blank=True,
-        null=True,
-        max_length=30,
+        max_length=30, blank=True, null=True,
         verbose_name=u"Icon")
     emoji = models.CharField(
-        blank=True,
-        null=True,
-        max_length=6,
+        max_length=6, blank=True, null=True,
         verbose_name=u"Emoji")
 
     class Meta:
@@ -79,52 +68,38 @@ class Suburb(models.Model):
         max_length=140,
         verbose_name=u"Nombre")
     short_name = models.CharField(
-        blank=True,
-        null=True,
-        max_length=140,
+        max_length=140, blank=True, null=True,
         verbose_name=u"Nombre  Corto")
     townhall = models.ForeignKey(
-        TownHall,
-        verbose_name=u"Alcaldia")
+        TownHall, verbose_name=u"Alcaldia")
     sururb_type = models.ForeignKey(
-        SuburbType,
-        blank=True,
-        null=True,
+        SuburbType, blank=True, null=True,
         verbose_name=u"Tipo de colonia")
     is_pilot = models.BooleanField(
         default=False, verbose_name=u"¿Es Piloto?")
     start_year = models.IntegerField(
-        default=2010,
-        verbose_name=u"Año de inicio")
+        default=2010, verbose_name=u"Año de inicio")
     end_year = models.IntegerField(
-        blank=True,
-        null=True,
+        blank=True, null=True,
         verbose_name=u"Año de Fin")
     derivation_suburb = models.ForeignKey(
-        "Suburb",
-        blank=True,
-        null=True,
+        "Suburb", blank=True, null=True,
         related_name="childrens_suburb",
         verbose_name=u"Colonia derivada de ")
     pob_2010 = models.IntegerField(
-        blank=True,
-        null=True,
+        blank=True, null=True,
         verbose_name=u"Poblacion en 2010")
     pob_2015 = models.IntegerField(
-        blank=True,
-        null=True,
+        blank=True, null=True,
         verbose_name=u"Poblacion en 2015")
     pob_2020 = models.IntegerField(
-        blank=True,
-        null=True,
+        blank=True, null=True,
         verbose_name=u"Poblacion en 2020")
     secc_com = models.TextField(
-        blank=True,
-        null=True,
+        blank=True, null=True,
         verbose_name=u"Seccion Completa")
     secc_parc = models.TextField(
-        blank=True,
-        null=True,
+        blank=True, null=True,
         verbose_name=u"Seccion Parcial")
 
     class Meta:
@@ -142,4 +117,4 @@ class SuburbGeoData(models.Model):
     geo_topo = models.TextField(verbose_name=u"geo topo")
 
     def __unicode__(self):
-        return self.suburb
+        return unicode(self.suburb)

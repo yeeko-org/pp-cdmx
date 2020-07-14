@@ -10,6 +10,8 @@ pp-cdmx/media/
 
 pp-cdmx/core/local.py
 
+*.json
+
 
 # Distribution / packaging
 .Python
