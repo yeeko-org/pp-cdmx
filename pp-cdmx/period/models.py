@@ -6,10 +6,14 @@ from ckeditor.fields import RichTextField
 
 
 class LawPP(models.Model):
-    publish_year = models.IntegerField()
-    name = models.TextField()
-    file_law = models.FileField(upload_to="law_pp", blank=True, null=True)
-    summary = RichTextField(blank=True, null=True)
+    publish_year = models.IntegerField(verbose_name=u"Año de publicacion")
+    name = models.TextField(verbose_name=u"Nombre")
+    file_law = models.FileField(
+        upload_to="law_pp",
+        blank=True,
+        null=True,
+        verbose_name=u"Archivo de Ley")
+    summary = RichTextField(blank=True, null=True, verbose_name=u"Contenido")
 
     class Meta:
         verbose_name = u"Ley Reglamentaria del Presupuesto Participativo"
@@ -20,10 +24,16 @@ class LawPP(models.Model):
 
 
 class PeriodPP(models.Model):
-    year = models.IntegerField()
-    is_public = models.BooleanField(default=False)
-    law_pp = models.ForeignKey(LawPP, blank=True, null=True)
-    excel_iedf = models.FileField(upload_to="period_pp")
+    year = models.IntegerField(verbose_name=u"Año")
+    is_public = models.BooleanField(default=False, verbose_name=u"Es Publico")
+    law_pp = models.ForeignKey(
+        LawPP,
+        blank=True,
+        null=True,
+        verbose_name=u"Ley Reglamentaria del PP")
+    excel_iedf = models.FileField(
+        upload_to="period_pp",
+        verbose_name=u"Archivo Excel del IEDF")
 
     class Meta:
         verbose_name = u"Periodo de Presupuesto Participativo"

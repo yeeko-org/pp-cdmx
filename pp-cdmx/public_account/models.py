@@ -8,10 +8,17 @@ from period.models import PeriodPP
 
 class PublicAccount(models.Model):
     original_pdf = models.FileField(
-        upload_to="public_account", blank=True, null=True)
-    townhall = models.ForeignKey(TownHall, blank=True, null=True)
-    pages = models.TextField(blank=True, null=True)
-    period_pp = models.ForeignKey(PeriodPP)
+        upload_to="public_account",
+        blank=True,
+        null=True,
+        verbose_name=u"PDF original")
+    townhall = models.ForeignKey(
+        TownHall,
+        blank=True,
+        null=True,
+        verbose_name=u"Alcaldia")
+    pages = models.TextField(blank=True, null=True, verbose_name=u"Paginas")
+    period_pp = models.ForeignKey(PeriodPP, verbose_name=u"Periodo PP")
 
     def __unicode__(self):
         return self.townhall
