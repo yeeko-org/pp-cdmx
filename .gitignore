@@ -8,6 +8,8 @@ __pycache__/
 
 pp-cdmx/media/
 
+pp-cdmx/core/local.py
+
 
 # Distribution / packaging
 .Python
