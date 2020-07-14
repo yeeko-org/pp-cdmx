@@ -5,5 +5,16 @@ from django.contrib import admin
 
 from .models import LawPP, PeriodPP
 
-admin.site.register(LawPP)
-admin.site.register(PeriodPP)
+
+class LawPPAdmin(admin.ModelAdmin):
+    model = LawPP
+    list_display = [
+        "publish_year", "name", "file_law", "summary"]
+admin.site.register(LawPP, LawPPAdmin)
+
+
+class PeriodPPAdmin(admin.ModelAdmin):
+    model = PeriodPP
+    list_display = [
+        "year", "is_public", "law_pp", "excel_iedf"]
+admin.site.register(PeriodPP, PeriodPPAdmin)

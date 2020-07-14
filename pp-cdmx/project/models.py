@@ -31,7 +31,7 @@ class FinalProject(models.Model):
     suburb = models.ForeignKey(Suburb)
     period_pp = models.ForeignKey(PeriodPP)
     project = models.ForeignKey(Project, blank=True, null=True)
-    total_votes = models.IntegerField(blank=True, null=True)
+    #total_votes = models.IntegerField(blank=True, null=True)
     description_cp = models.TextField(blank=True, null=True)
     final_name = models.TextField(blank=True, null=True)
     category_cp = models.CharField(max_length=255, blank=True, null=True)
