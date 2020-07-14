@@ -31,9 +31,11 @@ class PeriodPP(models.Model):
         blank=True,
         null=True,
         verbose_name=u"Ley Reglamentaria del PP")
-    excel_iedf = models.FileField(
+    pdf_iedf = models.FileField(
+        blank=True,
+        null=True,
         upload_to="period_pp",
-        verbose_name=u"Archivo Excel del IEDF")
+        verbose_name=u"Archivo PDF del IEDF")
 
     class Meta:
         verbose_name = u"Periodo de Presupuesto Participativo"

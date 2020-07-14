@@ -16,5 +16,5 @@ admin.site.register(LawPP, LawPPAdmin)
 class PeriodPPAdmin(admin.ModelAdmin):
     model = PeriodPP
     list_display = [
-        "year", "is_public", "law_pp", "excel_iedf"]
+        "year", "is_public", "law_pp", "pdf_iedf"]
 admin.site.register(PeriodPP, PeriodPPAdmin)
