@@ -17,6 +17,8 @@ class TownHall(models.Model):
         max_length=12,
         verbose_name=u"Nombre Corto")
     image = models.ImageField(
+        blank=True,
+        null=True,
         upload_to="townhall",
         verbose_name=u"Imagen")
 
@@ -24,8 +26,8 @@ class TownHall(models.Model):
         return self.short_name or self.name
 
     class Meta:
-        verbose_name = u"Alcaldia"
-        verbose_name_plural = u"Alcaldias"
+        verbose_name = u"Alcaldía"
+        verbose_name_plural = u"Alcaldías"
 
 
 class TownHallGeoData(models.Model):
@@ -86,6 +88,8 @@ class Suburb(models.Model):
         verbose_name=u"Alcaldia")
     sururb_type = models.ForeignKey(
         SuburbType,
+        blank=True,
+        null=True,
         verbose_name=u"Tipo de colonia")
     is_pilot = models.BooleanField(
         default=False, verbose_name=u"¿Es Piloto?")

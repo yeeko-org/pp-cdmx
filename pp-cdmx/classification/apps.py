@@ -5,4 +5,5 @@ from django.apps import AppConfig
 
 
 class ClassificationConfig(AppConfig):
-    name = 'classification'
+    name = "classification"
+    verbose_name = u"Clasificaciones"
