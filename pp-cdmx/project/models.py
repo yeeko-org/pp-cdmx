@@ -14,9 +14,12 @@ class Project(models.Model):
     suburb = models.ForeignKey(Suburb, verbose_name=u"Colonia")
     period_pp = models.ForeignKey(PeriodPP, verbose_name=u"Periodo PP")
     name_iedf = models.CharField(
+        blank=True, null=True,
         max_length=255,
         verbose_name=u"Nombre del IEFD")
-    project_id = models.IntegerField(verbose_name=u"ID del Proyecto")
+    project_id = models.IntegerField(
+        blank=True, null=True,
+        verbose_name=u"ID del Proyecto")
     category_iedf = models.ForeignKey(
         CategoryIEDF,
         blank=True,
@@ -78,6 +81,9 @@ class FinalProject(models.Model):
     validated = models.BooleanField(default=False, verbose_name=u"Validado")
     user_validation = models.ForeignKey(
         User, blank=True, null=True, verbose_name=u"Usuario validador")
+
+    # pre_clasification
+    # manuela_
     # original_page
 
     class Meta:
