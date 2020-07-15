@@ -42,4 +42,4 @@ class PeriodPP(models.Model):
         verbose_name_plural = u"Periodos de Presupuesto Participativo"
 
     def __unicode__(self):
-        return self.year
+        return unicode(self.year)
