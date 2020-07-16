@@ -19,15 +19,23 @@ class ProjectAdmin(admin.ModelAdmin):
     list_display = [
         "suburb", "period_pp", "name_iecm", "project_id", "category_iecm",
         "votes", "is_winer"]
-    raw_id_fields = ["suburb", "period_pp", "category_iecm"
-                     ]
+    raw_id_fields = ["suburb", "period_pp", "category_iecm"]
+    list_filter = ["suburb__townhall", "category_iecm"]
+    search_fields = [
+        "suburb__name", "suburb__townhall__name",
+        "category_iecm__name"]
 admin.site.register(Project, ProjectAdmin)
 
 
 class FinalProjectAdmin(admin.ModelAdmin):
     model = FinalProject
+    search_fields = [
+        "suburb__name", "suburb__townhall__name",
+        "anomalyfinalproject__anomaly__name"]
     list_display = [
-        "suburb", "period_pp", "project", "total_votes", "description_cp", "display_anomalyfinalprojectinline"]
+        "suburb", "period_pp", "project", "total_votes", "description_cp",
+        "display_anomalyfinalprojectinline"]
+    list_filter = ["suburb__townhall", "anomalyfinalproject__anomaly"]
     fieldsets = [
         [None, {
             "fields": [
