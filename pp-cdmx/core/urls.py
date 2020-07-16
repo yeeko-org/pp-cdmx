@@ -6,9 +6,9 @@ from django.shortcuts import redirect
 from django.views.static import serve
 
 
-admin.site.site_header = u"PP-CDMX"
-admin.site.site_title = u"PP-CDMX"
-admin.site.index_title = u"PP-CDMX"
+admin.site.site_header = u"Presupuesto Participativo CDMX"
+admin.site.site_title = u"Presupuesto Participativo CDMX"
+admin.site.index_title = u"Presupuesto Participativo CDMX"
 
 
 def redirect_admin(request):

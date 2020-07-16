@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 from django.contrib import admin
-from .models import CategoryIEDF
+from .models import CategoryIECM, Anomaly
 
-admin.site.register(CategoryIEDF)
+admin.site.register(CategoryIECM)
+admin.site.register(Anomaly)
