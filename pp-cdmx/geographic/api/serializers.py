@@ -33,7 +33,7 @@ class SuburbSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Suburb
-        fields = "__all__"
+        fields = ["id", "name", "suburb_type", "townhall"]
         # depth = 2
 
 
