@@ -49,35 +49,39 @@ class FinalProject(models.Model):
         blank=True, null=True, verbose_name=u"Total de Votos")
     description_cp = models.TextField(
         blank=True, null=True, verbose_name=u"Descripcion CP")
+    project_cp = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name=u"Proyecto CP")
     final_name = models.TextField(
         blank=True,
         null=True,
         verbose_name=u"Nombre Final")
-    category_cp = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True,
-        verbose_name=u"Categoria CP")
     # category_ollin
     # subcategory
 
     # Ammounts
     assigned = models.FloatField(
         blank=True, null=True, verbose_name=u"Asignado")
-    approuved = models.FloatField(
+    approved = models.FloatField(
         blank=True, null=True, verbose_name=u"Aprobado")
     modified = models.FloatField(
         blank=True,
         null=True,
         verbose_name=u"Modificado")
-    excecuted = models.FloatField(
+    executed = models.FloatField(
         blank=True, null=True, verbose_name=u"Ejecutado")
     progress = models.IntegerField(
         blank=True, null=True, verbose_name=u"Progreso")
 
     # Observations
+    manual_capture = models.TextField(
+        blank=True, null=True, verbose_name=u"Captura Manual")
     observation = models.TextField(
         blank=True, null=True, verbose_name=u"Observaciones")
+    pre_clasification = models.TextField(
+        blank=True, null=True, verbose_name=u"Pre-clasificación")
     validated = models.BooleanField(default=False, verbose_name=u"Validado")
     user_validation = models.ForeignKey(
         User, blank=True, null=True, verbose_name=u"Usuario validador")
