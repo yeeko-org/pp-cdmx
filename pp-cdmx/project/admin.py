@@ -54,7 +54,8 @@ class FinalProjectAdmin(admin.ModelAdmin):
         ["Observations", {
             "classes": ["collapse"],
             "fields": [
-                "observation", "validated", "user_validation"
+                "observation", "validated", "user_validation",
+                "manual_capture", "pre_clasification"
             ]
         }]
     ]
