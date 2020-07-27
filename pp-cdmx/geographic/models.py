@@ -72,7 +72,7 @@ class Suburb(models.Model):
         verbose_name=u"Nombre  Corto")
     townhall = models.ForeignKey(
         TownHall, verbose_name=u"Alcaldia")
-    sururb_type = models.ForeignKey(
+    suburb_type = models.ForeignKey(
         SuburbType, blank=True, null=True,
         verbose_name=u"Tipo de colonia")
     is_pilot = models.BooleanField(

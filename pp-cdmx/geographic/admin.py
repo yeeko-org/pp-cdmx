@@ -34,8 +34,8 @@ class SuburbAdmin(admin.ModelAdmin):
     model = Suburb
     list_display = [
         "cve_col", "name", "short_name", "townhall",
-        "sururb_type", "is_pilot"]
-    list_filter = ["townhall", "sururb_type"]
-    raw_id_fields = ["townhall", "sururb_type", "derivation_suburb"]
+        "suburb_type", "is_pilot"]
+    list_filter = ["townhall", "suburb_type"]
+    raw_id_fields = ["townhall", "suburb_type", "derivation_suburb"]
     inlines = [SuburbGeoDataInline]
 admin.site.register(Suburb, SuburbAdmin)
