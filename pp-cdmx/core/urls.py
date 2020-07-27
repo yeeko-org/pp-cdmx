@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.conf import settings
 from django.contrib import admin
-from django.conf.urls import url
+from django.conf.urls import url, include
 from django.shortcuts import redirect
 from django.views.static import serve
 
@@ -15,6 +15,7 @@ def redirect_admin(request):
     return redirect("/admin/")
 
 urlpatterns = [
+    url(r'^api/', include('api.urls')),
     url(r'^admin/', admin.site.urls),
     url(r'^$', redirect_admin),
 ]
