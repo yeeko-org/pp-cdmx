@@ -95,7 +95,7 @@ class FinalProject(models.Model):
         verbose_name_plural = "Proyectos Finales en la Cuenta Publica"
 
     def __unicode__(self):
-        return unicode(self.project)
+        return u"%s - %s" % (self.suburb, self.period_pp)
 
 
 class AnomalyFinalProject(models.Model):

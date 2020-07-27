@@ -30,7 +30,7 @@ admin.site.register(Project, ProjectAdmin)
 class FinalProjectAdmin(admin.ModelAdmin):
     model = FinalProject
     search_fields = [
-        "suburb__name", "suburb__townhall__name",
+        "suburb__name", "suburb__townhall__name", "suburb__cve_col",
         "anomalyfinalproject__anomaly__name"]
     list_display = [
         "suburb", "period_pp", "project", "total_votes", "description_cp",
@@ -40,13 +40,15 @@ class FinalProjectAdmin(admin.ModelAdmin):
         [None, {
             "fields": [
                 "suburb", "period_pp", "project", "total_votes",
-                "description_cp", "final_name", "category_cp"
+                "description_cp", "final_name"  # , "category_cp"
             ]
         }],
         ["Ammounts", {
             "classes": ["collapse"],
             "fields": [
-                "assigned", "approuved", "modified", "excecuted", "progress"
+                "assigned",  # "approuved",
+                "modified",  # "excecuted",
+                "progress"
             ]
         }],
         ["Observations", {
