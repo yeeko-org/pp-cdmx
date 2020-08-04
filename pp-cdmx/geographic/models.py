@@ -102,6 +102,10 @@ class Suburb(models.Model):
         blank=True, null=True,
         verbose_name=u"Seccion Parcial")
 
+    def final_projects(self):
+        from project.models import FinalProject
+        return FinalProject.objects.filter(suburb=self)
+
     class Meta:
         verbose_name = "Colonia"
         verbose_name_plural = "Colonias"

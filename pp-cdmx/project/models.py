@@ -89,6 +89,10 @@ class FinalProject(models.Model):
     # pre_clasification
     # manuela_
     # original_page
+    def projects(self):
+        return Project.objects\
+            .filter(suburb=self.suburb, period_pp=self.period_pp)\
+            .distinct()
 
     class Meta:
         verbose_name = "Proyecto Final en la Cuenta Publica"

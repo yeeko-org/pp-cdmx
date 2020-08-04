@@ -11,4 +11,5 @@ urlpatterns = [
 
     # Endpoints
     url(r'^geo/', include('geographic.api.urls')),
+    url(r'^project/', include('project.api.urls')),
 ]
