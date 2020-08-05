@@ -6,10 +6,13 @@ from geographic.models import (
 
 
 class TownHallSerializer(serializers.ModelSerializer):
+    # geo_point=serializers.ReadOnlyField(source="townhallgeodata.geo_point")
 
     class Meta:
         model = TownHall
-        fields = "__all__"
+        fields = ["cve_inegi", "cve_alc", "name", "short_name", "image",
+                  #"geo_point"
+                  ]
         # depth = 2
 
 
@@ -30,10 +33,17 @@ class SuburbTypeSerializer(serializers.ModelSerializer):
 
 
 class SuburbSerializer(serializers.ModelSerializer):
+    geo_point = serializers.ReadOnlyField(source="suburbgeodata.geo_point")
 
     class Meta:
         model = Suburb
-        fields = ["id", "name", "suburb_type", "townhall"]
+        fields = [
+            "id",
+            "name",
+            "suburb_type",
+            "townhall",
+            "pob_2010",
+            "geo_point"]
         # depth = 2
 
 
@@ -41,5 +51,17 @@ class SuburbGeoDataSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SuburbGeoData
+        fields = "__all__"
+        # depth = 2
+
+from project.api.serializers import FinalProjectSerializer
+
+
+class SuburbHeavySerializer(serializers.ModelSerializer):
+    geo_data = SuburbGeoDataSerializer(source="suburbgeodata")
+    final_projects = FinalProjectSerializer(many=True)
+
+    class Meta:
+        model = Suburb
         fields = "__all__"
         # depth = 2
