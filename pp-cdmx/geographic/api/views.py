@@ -22,7 +22,7 @@ class CatalogView(views.APIView):
 
         townhall_queryset = TownHall.objects.all()
         suburb_type_queryset = SuburbType.objects.all()
-        suburb_queryset = Suburb.objects.all()
+        suburb_queryset = Suburb.objects.all().order_by('townhall_id')
         data = {
             "townhall": serializers.TownHallSerializer(
                 townhall_queryset, many=True).data,
