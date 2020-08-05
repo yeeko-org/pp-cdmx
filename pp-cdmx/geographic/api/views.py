@@ -8,6 +8,7 @@ from geographic.models import (
 
 from api.mixins import ListMix, CreateMix, RetrieveMix
 from api.mixins import MultiSerializerModelViewSet as ModelViewSet
+from django.db.models import F
 
 # class ModelList(ListMix):
 #     permission_classes = [permissions.AllowAny]
@@ -22,15 +23,16 @@ class CatalogView(views.APIView):
 
         townhall_queryset = TownHall.objects.all()
         suburb_type_queryset = SuburbType.objects.all()
-        suburb_queryset = Suburb.objects.all().order_by('townhall_id')
+        suburb_queryset = Suburb.objects.all()\
+            .order_by('townhall_id', 'suburb_type')
         data = {
             "townhall": serializers.TownHallSerializer(
                 townhall_queryset, many=True).data,
             "suburb_type": serializers.SuburbTypeSerializer(
                 suburb_type_queryset, many=True).data,
             "suburb": Suburb.objects.all().values(
-                "id", "name", "suburb_type", "townhall", "pob_2010",
-                "suburbgeodata__geo_point"),
+                "id", "name", "suburb_type", "townhall", "pob_2010")
+            .annotate(geo_point = F('suburbgeodata__geo_point'))
         }
         return Response(data)
 
