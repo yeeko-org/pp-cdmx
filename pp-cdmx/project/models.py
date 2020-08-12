@@ -8,6 +8,7 @@ from period.models import PeriodPP
 from classification.models import CategoryIECM, Anomaly
 
 from django.contrib.auth.models import User
+from public_account.models import PPImage
 
 
 class Project(models.Model):
@@ -62,18 +63,25 @@ class FinalProject(models.Model):
     # subcategory
 
     # Ammounts
-    assigned = models.FloatField(
+    # cambiar a decimal todos los float
+    assigned = models.DecimalField(
+        max_digits=5, decimal_places=2,
         blank=True, null=True, verbose_name=u"Asignado")
-    approved = models.FloatField(
+    approved = models.DecimalField(
+        max_digits=5, decimal_places=2,
         blank=True, null=True, verbose_name=u"Aprobado")
-    modified = models.FloatField(
+    modified = models.DecimalField(
+        max_digits=5, decimal_places=2,
         blank=True,
         null=True,
         verbose_name=u"Modificado")
-    executed = models.FloatField(
+    executed = models.DecimalField(
+        max_digits=5, decimal_places=2,
         blank=True, null=True, verbose_name=u"Ejecutado")
-    progress = models.IntegerField(
-        blank=True, null=True, verbose_name=u"Progreso")
+
+    progress = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        blank=True, null=True, verbose_name=u"Avance del proyecto")
 
     # Observations
     manual_capture = models.TextField(
@@ -86,9 +94,11 @@ class FinalProject(models.Model):
     user_validation = models.ForeignKey(
         User, blank=True, null=True, verbose_name=u"Usuario validador")
 
+    image = models.ForeignKey(PPImage, blank=True, null=True)
     # pre_clasification
     # manuela_
     # original_page
+
     def projects(self):
         return Project.objects\
             .filter(suburb=self.suburb, period_pp=self.period_pp)\
