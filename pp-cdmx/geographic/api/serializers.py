@@ -10,7 +10,7 @@ class TownHallSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TownHall
-        fields = ["cve_inegi", "cve_alc", "name", "short_name", "image",
+        fields = ["id", "cve_inegi", "cve_alc", "name", "short_name", "image",
                   #"geo_point"
                   ]
         # depth = 2

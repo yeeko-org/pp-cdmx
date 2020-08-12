@@ -71,7 +71,7 @@ class Suburb(models.Model):
         max_length=140, blank=True, null=True,
         verbose_name=u"Nombre  Corto")
     townhall = models.ForeignKey(
-        TownHall, verbose_name=u"Alcaldia")
+        TownHall, verbose_name=u"Alcaldía")
     suburb_type = models.ForeignKey(
         SuburbType, blank=True, null=True,
         verbose_name=u"Tipo de colonia")
