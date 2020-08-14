@@ -20,15 +20,15 @@ def cleanSuburbName(text):
     #Sustituimos puntos por espacios
     final_name = re.sub(r'\.', ' ', final_name)
     final_name = final_name.strip()
-    #eliminamos espacios entre paréntesis
+    #eliminamos espacios entre paréntesis ( U HAB ) --> (U HAB)
     final_name = re.sub(r'\(\s?(.*)(\S+)\s?\)', '(\\1\\2)', final_name)
-    compact_name = re.sub(r'[^0-9A-Z]', '', final_name)
-    return final_name, compact_name
+    #compact_name = re.sub(r'[^0-9A-Z]', '', final_name)
+    return final_name
 
 def buildSuburbComparename():
     all_suburbs = Suburb.objects.all()
     for sub in all_suburbs:
-        sub.short_name, sub.compact_name=cleanSuburbName(sub.name)
+        sub.short_name=cleanSuburbName(sub.name)
         sub.save()
 
 
@@ -162,7 +162,7 @@ def calculateNumbers(rows, is_ammount, seq):
         #Limpieza básica de espacios:
         new_value = new_value.strip()
         
-        #Se quitan los espacios alrededor de puntos y comas (siempre a puntos)
+        #Se quitan los espacios alrededor de puntos y comas (siempre a puntos) ||  4 , 5 --> 4,5
         new_value = re.sub(r'(\d)\s?[\.,]\s?(\d)', '\\1.\\2', new_value)
         
         if not is_ammount:
@@ -175,7 +175,8 @@ def calculateNumbers(rows, is_ammount, seq):
             new_value = re.sub(r'\.(\d{3})', '\\1', new_value)
         
         #Se separan los números que estén en el mismo elemento
-        if is_ammount and len(re.sub(r'[^\d]', '', new_value)) < 10 and len(re.sub(r'[^\1-9]', '', new_value)) > 2:
+        if (is_ammount and len(re.sub(r'[^\d]', '', new_value)) < 10 
+            and len(re.sub(r'[^\1-9]', '', new_value)) > 2):
             new_value = re.sub(r'[^\d\.]', '', new_value)
         splited = re.split(r'\s', new_value)
         for unity in splited:
@@ -206,10 +207,10 @@ def calculateNumbers(rows, is_ammount, seq):
 
 
 
-
-def matchSuburb(row, suburbs, seq, image):
-    re_has_cve = re.compile(r'^.*(\d{2})[\-](\d{3})(?:\D|$).*')
-    normal_name, compact_name = cleanSuburbName(row)
+def matchSuburb(row, suburbs, seq, image, period=2018):
+    #identificamos el format (11-034)
+    re_has_cve = re.compile(r'^.*(\d{2})\-(\d{3})(?:\D|$).*')
+    normal_name = cleanSuburbName(row)
     raw_non_spaces = len(re.sub(r'[^\S]', '', normal_name))
     #print normal_name
     
@@ -227,7 +228,6 @@ def matchSuburb(row, suburbs, seq, image):
         return False
         #continue
     
-    has_cve = False
     new_dict = {"suburb_id": None}
     #Se busca la clave de la colonia
     the_sub = False
@@ -241,7 +241,7 @@ def matchSuburb(row, suburbs, seq, image):
                 print 'No encontrado'
     if not the_sub:
         subs_found = suburbs.filter(short_name=normal_name,
-            finalproject__period_pp__year=2018,
+            finalproject__period_pp__year=period,
             finalproject__image__isnull=True)
         if subs_found.count() > 1:
             print "varios"
@@ -249,7 +249,7 @@ def matchSuburb(row, suburbs, seq, image):
         elif subs_found.count()  == 1:
             the_sub = subs_found[0]
         else:
-            print compact_name
+            print normal_name
     if the_sub:
         try:
             final_proy = FinalProject.objects.get(suburb__id=the_sub.id,
@@ -316,6 +316,7 @@ for sub in missings_subs:
             max_conc = concordance 
     if final_row_idx > -1:
         all_rows[final_row_idx]["suburb_id"] = sub.id
+        all_rows[final_row_idx]["concordance"] = max_conc
         print "-------------"
         print sub.short_name
         #print all_rows[final_row_idx]["raw_normalized"]
