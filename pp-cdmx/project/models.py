@@ -95,6 +95,7 @@ class FinalProject(models.Model):
         User, blank=True, null=True, verbose_name=u"Usuario validador")
 
     image = models.ForeignKey(PPImage, blank=True, null=True)
+
     # pre_clasification
     # manuela_
     # original_page
