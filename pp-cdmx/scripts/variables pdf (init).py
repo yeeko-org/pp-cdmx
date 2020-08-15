@@ -98,7 +98,7 @@ def calculateSuburb(data_subs, th, image):
     return column_values
 
 
-def calcColumnsNumbers(data_numbers, th_short):
+def calcColumnsNumbers(data_numbers, th_short=None):
     column_values = []
     large_row = 0
     seq = 0
@@ -108,7 +108,7 @@ def calcColumnsNumbers(data_numbers, th_short):
     for rows in data_numbers["data"]:
         is_ammount = (column_number > 1 and column_number < 5)
         seq+=1
-        the_dict = calculateNumbers(rows, is_ammount, seq)
+        the_dict = calculateNumbers(rows, is_ammount)
         if the_dict:
             len_dict = len(the_dict)
             large_row = large_row or len_dict
@@ -125,7 +125,7 @@ def calcColumnsNumbers(data_numbers, th_short):
     return column_values, len_array
 
 
-def calculateNumbers(rows, is_ammount, seq):
+def calculateNumbers(rows, is_ammount, seq=None):
     #### Variables que nos ayudarán:
     # Patrón REGEX para porcentajes válidos.
     #re_ammount = re.compile(
@@ -147,10 +147,11 @@ def calculateNumbers(rows, is_ammount, seq):
         #Sustituimos las Os por 0
         new_value = re.sub(r'(O)', '0', new_value)
         new_value = re.sub(r'(/)', ',', new_value)
+        if bool(re.search(r'(3/1)', new_value)):
+            continue
         #Nos quedamos solo con lo que utilizaremos
         new_value = re.sub(r'[^0-9\,\.\s\-\%\(\)]', '', new_value)
         clean_non_spaces = len(re.sub(r'[^\S]', '', new_value))
-        
         #La mayor parte que sean los números
         try:
             if (clean_non_spaces / float(raw_non_spaces)) < 0.8:
@@ -161,19 +162,17 @@ def calculateNumbers(rows, is_ammount, seq):
             continue
         #Limpieza básica de espacios:
         new_value = new_value.strip()
-        
         #Se quitan los espacios alrededor de puntos y comas (siempre a puntos) ||  4 , 5 --> 4,5
         new_value = re.sub(r'(\d)\s?[\.,]\s?(\d)', '\\1.\\2', new_value)
-        
         if not is_ammount:
             #Se quita el espacio entre el número y el porcentaje, en caso de existir.
             new_value = re.sub(r'(\d)\s?%', '\\1%', new_value)
             #Se quitan los espacios después del abrir paréntesis y antes de cerrarlos
-            new_value = re.sub(r'\(\s?(.+)\s?\)', '\\1', new_value)
+            new_value = re.sub(r'\(\s?(.*)(\S+)\s?\)', '(\\1\\2)', new_value)
+            # new_value = re.sub(r'\(\s?(.+)\s?\)', '\\1', new_value)
         else:
             #Si después de los puntos hay 3 caracteres, los eliminamos:
             new_value = re.sub(r'\.(\d{3})', '\\1', new_value)
-        
         #Se separan los números que estén en el mismo elemento
         if (is_ammount and len(re.sub(r'[^\d]', '', new_value)) < 10 
             and len(re.sub(r'[^\1-9]', '', new_value)) > 2):
@@ -194,14 +193,18 @@ def calculateNumbers(rows, is_ammount, seq):
         has_special_format = count_special_format / float(len_column) >= 0.75
     else:
         return False
-    
     for new_value in column_values:
         if new_value["correct_format"]:
             only_ints = new_value["raw_unity"]
             if (has_special_format and not is_ammount):
                 only_ints = re.sub(re_format, '', only_ints)
-            new_value["final_value"] = float(only_ints)
-    
+            if not only_ints:
+                continue
+            float_value=float(only_ints)
+            if is_ammount and 0<float_value<1000:
+                column_values.remove(new_value)
+                continue
+            new_value["final_value"] = float_value
     #print column_values
     return column_values
 
