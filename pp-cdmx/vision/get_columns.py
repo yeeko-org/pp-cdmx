@@ -189,8 +189,8 @@ def get_year_data(mypath, pp_year=2018, print_test=True):
             columns = greater_to_left_column(vision_data, var_px=20)
             data_in_columns.append(columns)
         normalize_data_=normalize_data(data_in_columns)
-        if not townhall.cve_inegi in scraping_simple:
-            scraping_simple[townhall.cve_inegi]={
+        if not townhall.short_name in scraping_simple:
+            scraping_simple[townhall.short_name]={
                 "townhall": townhall,
                 "period": periodpp
             }
@@ -204,8 +204,8 @@ def get_year_data(mypath, pp_year=2018, print_test=True):
                 }
             }
         }
-        scraping_simple[townhall.cve_inegi]=update(
-            scraping_simple[townhall.cve_inegi], townhall_scraping_data)
+        scraping_simple[townhall.short_name]=update(
+            scraping_simple[townhall.short_name], townhall_scraping_data)
     return scraping_simple
 
 
