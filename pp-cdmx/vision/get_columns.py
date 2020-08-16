@@ -149,41 +149,47 @@ def update(d, u):
     return d
 
 
-def get_year_data(mypath, pp_year=2018, print_test=True):
+def get_year_data(mypath, pp_year=2018, th=False, print_test=True):
     from project.models import FinalProject
     from geographic.models import (TownHall, Suburb)
     from public_account.models import(PublicAccount, PPImage)
     from period.models import PeriodPP
     from os import listdir
     from os.path import isfile, join
-    pages = []
-    only_pdf_files = [
-        f for f in listdir(mypath) if isfile(
-            join(mypath, f)) and (".png" in f and "PP-" in f)]
+    import re
+    #Ajustes que no estoy seguro que funcionen:
+    all_pdf_files = []
+    for page in [1, 2]:
+        base_path = "%s%s\\"%(mypath, page)
+        for f in listdir(base_path):
+            full_file_path = "%s%s"%(base_path, f)
+            if isfile(full_file_path) and (".png" in f and "PP-" in f):
+                all_pdf_files.append([f, full_file_path])
     try:
         periodpp = PeriodPP.objects.get(year=pp_year)
     except Exception as e:
         raise e
         return
     scraping_simple={}
-    for file in only_pdf_files:
-        full_file_path = mypath + file
-        data_in_name = file.replace( "PP-", "")\
-            .replace(".png", "").replace("_", "-")
-        try:
-            year, short_name, image_name, sub_image = [
-            variable_in_name
-                 for variable_in_name in data_in_name.split("-")]
-        except Exception as e:
+    re_vars = re.compile(r'^.*\\p([1-2])\\PP-(\d{4})-(\w{2,3})_(\d{4}).png$')
+    for file in all_pdf_files:
+        if re_vars.match(file[1]):
+            all_vars = re.sub(re_vars, '\\1-\\2-\\3-\\4', file[1])
+        else:
             continue
+        sub_image, year, short_name, image_name = all_vars.split("-")
         if year!=u"%s"%pp_year:
+            continue
+        if th and th != short_name:
+            #Se especificó una alcaldía en específico
             continue
         townhall=TownHall.objects.filter(short_name=short_name).first()
         if not townhall:
             print u"townhall no identificado con el short_name: %s"%short_name
             continue
         print townhall
-        vision_data = get_data_order(full_file_path)
+        
+        vision_data = get_data_order(file[1])
         data_in_columns = []
         while vision_data:
             columns = greater_to_left_column(vision_data, var_px=20)
@@ -199,7 +205,7 @@ def get_year_data(mypath, pp_year=2018, print_test=True):
                 image_name: {
                     sub_image: {
                         "data": normalize_data_,
-                        "file": file
+                        "file": file[0]
                     }
                 }
             }

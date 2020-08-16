@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 from . import serializers
+from classification.api.serializers import CategoryIECMSerializer
 from rest_framework.response import Response
 from rest_framework import (permissions, views, status)
 
 from geographic.models import (
     TownHall, TownHallGeoData, SuburbType, Suburb, SuburbGeoData, )
+
+from classification.models import (CategoryIECM)
 
 from api.mixins import ListMix, CreateMix, RetrieveMix
 from api.mixins import MultiSerializerModelViewSet as ModelViewSet
@@ -21,11 +24,14 @@ class CatalogView(views.APIView):
 
     def get(self, request):
 
+        categories_queryset = CategoryIECM.objects.all()
         townhall_queryset = TownHall.objects.all()
         suburb_type_queryset = SuburbType.objects.all()
         suburb_queryset = Suburb.objects.all()\
             .order_by('townhall_id', 'suburb_type')
         data = {
+            "categories": CategoryIECMSerializer(
+                categories_queryset, many=True).data,
             "townhall": serializers.TownHallSerializer(
                 townhall_queryset, many=True).data,
             "suburb_type": serializers.SuburbTypeSerializer(

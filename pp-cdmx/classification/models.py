@@ -6,6 +6,10 @@ from django.db import models
 
 class CategoryIECM(models.Model):
     name = models.CharField(max_length=80, verbose_name=u"Nombre")
+    icon = models.CharField(max_length=80, verbose_name=u"Ícono", 
+        blank=True, null=True)
+    color = models.CharField(max_length=80, verbose_name=u"Color", 
+        blank=True, null=True)
     year_start = models.IntegerField(
         verbose_name=u"Año de Inicio", blank=True, null=True)
     year_end = models.IntegerField(

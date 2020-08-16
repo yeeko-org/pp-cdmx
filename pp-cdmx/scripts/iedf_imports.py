@@ -76,3 +76,18 @@ def calculate_winner(year=2018):
         print "winer_proyects: %s" % winer_proyects
         print "count_winers: %s" % count_winers
         print
+
+def CategoriesIECM20180():
+    from classification.models import CategoryIECM
+    names = [["Actividades culturales", "fa-palette"],
+    ["Actividades recreativas", "fa-kite"],
+    ["Actividades deportivas", "fa-running"],
+    ["Obras y servicios", "fa-hard-hat"],
+    ["Prevención del delito", "fa-bell"],
+    ["Infraestructura urbana", "fa-city"],
+    ["Equipamiento", "fa-tree"]]
+    for name in names:
+        cat = CategoryIECM.objects.get(name=name[0])
+        cat.icon = name[1]
+        cat.save()
+

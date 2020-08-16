@@ -6,19 +6,6 @@ import unidecode
 from public_account.models import *
 from period.models import *
 import numpy
-from vision.get_columns import get_year_data
-import json
-
-dels = ["CUH", "CUJ", "TLP", "VC", "XO", "AO", "IZT", "AZC", "TLH", "MC", "MH", "COY", "GAM", "BJ", "MIL"]
-
-path_image = u'G:\\Mi unidad\\YEEKO\\Clientes\\Ollin-Presupuesto participativo\\Bases de datos\\Cuenta Pública\\init\\p'
-
-
-data_from_lens = get_year_data(path_image, 2018, dels[0])
-
-
-data_for_tests = data_from_lens[dels[0]]
-
 
 def cleanSuburbName(text):
     try:
@@ -45,6 +32,8 @@ def buildSuburbComparename():
         sub.save()
 
 
+from scripts.first_scraping import all_pages
+
 def import_json(curr_pages):
     suburbs_dict = []
     th = TownHall.objects.get(short_name=curr_pages["townhall"]) 
@@ -57,28 +46,14 @@ def import_json(curr_pages):
         image, created = PPImage.objects.get_org_create(
             public_account=pa, path=page[0])
         data_numbers = page[1]["2"]
-        number_results, len_array = calcColumnsNumbers(data_numbers, th)
-        standar_dev = numpy.std(len_array)
-        is_stable = standar_dev < 1
-        if image.json_variables:
-            init_json = json.loads(image.json_variables)
-        else:
-            init_json = {}
-        init_json["is_stable"] = is_stable
+        number_results, len_array = calcColumnsNumbers(data_numbers)
+        is_stable = numpy.std(len_array) < 1
         if is_stable:
-            #json.dumps
-            #json.loads
-
-            number_of_rows = round(numpy.mean(len_array))
-
-            init_json["exact_rows"] = standar_dev == 0
-            init_json["rows_count"] = number_of_rows
-
             ordered_numbers = []
             for column in number_results:
                 ordered_numbers.append()
-            
-            amm_types= ["avance", "approved", "modified", "executed", "progress"]
+            number_of_rows = round(numpy.mean(len_array))
+            amm_types= ["progress", "approved", "modified", "executed", "variation"]
             for idx, row in ennumerate(xrange(number_of_rows)):
                 complete_row = {}
                 for idx_amm,ammount in ennumerate(amm_types):
@@ -97,11 +72,10 @@ def import_json(curr_pages):
     return suburbs_dict
 
 
-curr_pages = data_from_lens["CUH"]
-import_json(curr_pages)
+idx = 0
+all_rows = import_json(all_pages[idx])
 
 
-pruebas = data_from_lens["CUH"]["images"]["0004"]
 for row in all_rows:
     print "------------"
     for r in row:
@@ -124,17 +98,17 @@ def calculateSuburb(data_subs, th, image):
     return column_values
 
 
-def calcColumnsNumbers(data_numbers, th_short=None):
+def calcColumnsNumbers(data_numbers):
     column_values = []
     large_row = 0
     seq = 0
     column_number = 1 
-    current_len = 0
     len_array = []
+    current_len = 0
     for rows in data_numbers["data"]:
         is_ammount = (column_number > 1 and column_number < 5)
         seq+=1
-        the_dict = calculateNumbers(rows, is_ammount)
+        the_dict = calculateNumbers(rows, is_ammount, seq)
         if the_dict:
             len_dict = len(the_dict)
             large_row = large_row or len_dict
@@ -144,14 +118,14 @@ def calcColumnsNumbers(data_numbers, th_short=None):
                 column_values.append(the_dict)
                 print current_len
                 len_array.append(current_len)
-                current_len = 0
+                | = 0
             else:
                 column_values[-1]+=the_dict
             #column_values[column_number-1]=the_dict
     return column_values, len_array
 
 
-def calculateNumbers(rows, is_ammount, seq=None):
+def calculateNumbers(rows, is_ammount, seq):
     #### Variables que nos ayudarán:
     # Patrón REGEX para porcentajes válidos.
     #re_ammount = re.compile(
@@ -173,11 +147,10 @@ def calculateNumbers(rows, is_ammount, seq=None):
         #Sustituimos las Os por 0
         new_value = re.sub(r'(O)', '0', new_value)
         new_value = re.sub(r'(/)', ',', new_value)
-        if bool(re.search(r'(3/1)', new_value)):
-            continue
         #Nos quedamos solo con lo que utilizaremos
         new_value = re.sub(r'[^0-9\,\.\s\-\%\(\)]', '', new_value)
         clean_non_spaces = len(re.sub(r'[^\S]', '', new_value))
+        
         #La mayor parte que sean los números
         try:
             if (clean_non_spaces / float(raw_non_spaces)) < 0.8:
@@ -188,17 +161,19 @@ def calculateNumbers(rows, is_ammount, seq=None):
             continue
         #Limpieza básica de espacios:
         new_value = new_value.strip()
+        
         #Se quitan los espacios alrededor de puntos y comas (siempre a puntos) ||  4 , 5 --> 4,5
         new_value = re.sub(r'(\d)\s?[\.,]\s?(\d)', '\\1.\\2', new_value)
+        
         if not is_ammount:
             #Se quita el espacio entre el número y el porcentaje, en caso de existir.
             new_value = re.sub(r'(\d)\s?%', '\\1%', new_value)
             #Se quitan los espacios después del abrir paréntesis y antes de cerrarlos
-            new_value = re.sub(r'\(\s?(.*)(\S+)\s?\)', '(\\1\\2)', new_value)
-            # new_value = re.sub(r'\(\s?(.+)\s?\)', '\\1', new_value)
+            new_value = re.sub(r'\(\s?(.+)\s?\)', '\\1', new_value)
         else:
             #Si después de los puntos hay 3 caracteres, los eliminamos:
             new_value = re.sub(r'\.(\d{3})', '\\1', new_value)
+        
         #Se separan los números que estén en el mismo elemento
         if (is_ammount and len(re.sub(r'[^\d]', '', new_value)) < 10 
             and len(re.sub(r'[^\1-9]', '', new_value)) > 2):
@@ -219,18 +194,14 @@ def calculateNumbers(rows, is_ammount, seq=None):
         has_special_format = count_special_format / float(len_column) >= 0.75
     else:
         return False
+    
     for new_value in column_values:
         if new_value["correct_format"]:
             only_ints = new_value["raw_unity"]
             if (has_special_format and not is_ammount):
                 only_ints = re.sub(re_format, '', only_ints)
-            if not only_ints:
-                continue
-            float_value=float(only_ints)
-            if is_ammount and 0<float_value<1000:
-                column_values.remove(new_value)
-                continue
-            new_value["final_value"] = float_value
+            new_value["final_value"] = float(only_ints)
+    
     #print column_values
     return column_values
 
