@@ -22,7 +22,7 @@ class PublicAccount(models.Model):
     variables = models.TextField(blank=True, null=True)
 
     def __unicode__(self):
-        return self.townhall
+        return u"%s -- %s"%(self.period_pp, self.townhall)
 
     class Meta:
         verbose_name = u"Cuenta Publica"

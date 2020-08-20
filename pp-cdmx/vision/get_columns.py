@@ -14,6 +14,14 @@ def block_fy(e):
 def block_fx(e):
     return e['fx']
 
+def get_vertices(vertices):
+    data=[]
+    for vertice in vertices:
+        data.append({
+            "x":vertice.x,
+            "y":vertice.y
+            })
+    return data
 
 def get_data_order(path_file):
     from google.cloud import vision
@@ -35,11 +43,21 @@ def get_data_order(path_file):
     index_fc = page.width / 8
     for block in page.blocks:
         total_text = []
+        data_paragraphs=[]
         for paragraph in block.paragraphs:
+            data_words=[]
             for word in paragraph.words:
-                word_data = []
+                word_symbols = []
+                symbols_data=[]
                 for symbol in word.symbols:
-                    word_data.append(symbol.text)
+                    word_symbols.append(symbol.text)
+
+                    symbol_data={
+                        "text": symbol.text,
+                        "confidence": symbol.confidence,
+                        "vertices": get_vertices(symbol.bounding_box.vertices)
+                    }
+
                     """
                     tipo de quiebre de una palabra
                     http://googleapis.github.io/googleapis/java/
@@ -53,22 +71,36 @@ def get_data_order(path_file):
                     HYPHEN = 4;
                     LINE_BREAK = 5;
                     """
-                    if symbol.property.detected_break.type in [3, 4,5]:
-                        word_data.append(u"\n")
-                word_text = u''.join(word_data)
+                    detected_break=symbol.property.detected_break.type
+                    if detected_break in [3, 4,5]:
+                        word_symbols.append(u"\n")
+                        symbol_data["detected_break"]=detected_break
+                    symbols_data.append(symbol_data)
+                data_words.append({
+                    "symbols": symbols_data,
+                    "vertices": get_vertices(word.bounding_box.vertices)
+                })
+                word_text = u''.join(word_symbols)
                 try:
                     total_text.append(word_text)
                 except Exception as e:
                     pass
-        vertices = block.bounding_box.vertices
+            data_paragraphs.append({
+                "words": data_words,
+                "vertices": get_vertices(paragraph.bounding_box.vertices)
+                })
+        vertices = get_vertices(block.bounding_box.vertices)
         blocks.append(
             {
-                "raw": block,
+                "block": {
+                    "paragraphs" :data_paragraphs,
+                    "vertices": vertices
+                },
                 "total_text": total_text,
                 "vertices": vertices,
                 "w": u" ".join(total_text),
-                "fx": vertices[0].x,
-                "fy": vertices[0].y
+                "fx": vertices[0].get("x", 0),
+                "fy": vertices[0].get("y", 0)
             })
     blocks.sort(key=block_fx)
     return blocks
@@ -78,8 +110,8 @@ def greater_to_left_column(ordern_blocks, var_px=40, rectification=True):
     if not ordern_blocks:
         return []
     first_block = ordern_blocks[0]
-    fxa = first_block.get("vertices")[0].x
-    fxb = first_block.get("vertices")[1].x
+    fxa = first_block.get("vertices")[0].get("x", 0)
+    fxb = first_block.get("vertices")[1].get("x", 0)
     fxc = (fxa + fxb) / 2
     columns = []
     index = 0
@@ -87,8 +119,8 @@ def greater_to_left_column(ordern_blocks, var_px=40, rectification=True):
     while not index >= len(ordern_blocks):
         block = ordern_blocks[index]
         vertices = block.get("vertices")
-        xa = vertices[0].x
-        xb = vertices[1].x
+        xa = vertices[0].get("x", 0)
+        xb = vertices[1].get("x", 0)
         xc = (xa + xb) / 2
         left_line = (xa > (fxa - var_px) and xa < (fxa + var_px))
         right_line = (xb > (fxb - var_px) and xb < (fxb + var_px))
@@ -190,6 +222,8 @@ def get_year_data(mypath, pp_year=2018, th=False, print_test=True):
         print townhall
         
         vision_data = get_data_order(file[1])
+        # copia para mandar y guardar en algun otro momento
+        # vision_data_copy=list(vision_data)
         data_in_columns = []
         while vision_data:
             columns = greater_to_left_column(vision_data, var_px=20)
@@ -214,6 +248,35 @@ def get_year_data(mypath, pp_year=2018, th=False, print_test=True):
             scraping_simple[townhall.short_name], townhall_scraping_data)
     return scraping_simple
 
+
+def extractDataForLens(path_image, year=2018, th=False):
+    from public_account.models import PublicAccount, PPImage
+    import json
+    data_from_lens = get_year_data(path_image, pp_year=year, th=th)
+    #pages = dict.items(data_from_lens)
+    for th_sn, th_data in data_from_lens.items():
+        import json
+        townhall=th_data.get("townhall")
+        periodpp=th_data.get("period")
+        images_scraping=th_data.get("images")
+        public_account, is_created=PublicAccount.objects.get_or_create(
+            townhall=townhall, period_pp=periodpp)
+
+        public_account.variables=json.dumps(images_scraping)
+        public_account.save()
+
+        for image_name, image_data in images_scraping.items():
+            file=None
+            for sub_image, sub_image_data in image_data.items():
+                file=sub_image_data.get("file")
+                if file:
+                    break
+            pp_image, is_created=PPImage.objects.get_or_create(
+                public_account=public_account,
+                path=file
+                )
+            pp_image.json_variables=json.dumps(image_data)
+            pp_image.save()
 
 
 def proces_scraping_simple(scraping_simple):
