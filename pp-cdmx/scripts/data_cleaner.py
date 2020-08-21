@@ -257,6 +257,7 @@ def matchSuburb(row, suburbs, seq, image, period=2018):
         else:
             print normal_name
     if the_sub:
+        from projects.models import FinalProject
         try:
             final_proy = FinalProject.objects.get(suburb__id=the_sub.id,
                 image__isnull=True)
