@@ -34,3 +34,33 @@ class PPImage(models.Model):
     path = models.CharField(max_length=255)
     json_variables = models.TextField(blank=True, null=True)
     clean_data = models.TextField(blank=True, null=True)
+    number_of_rows=models.TextField(blank=True, null=True)
+    def get_json_variables(self):
+        import json
+        try:
+            return json.loads(self.json_variables)
+        except Exception as e:
+            print e
+            return {}
+    def calcColumnsNumbers(self):
+        import json
+        from scripts.data_cleaner import calcColumnsNumbers
+        scraping_numbers=self.get_json_variables().get("2", {})
+        column_values, len_array = calcColumnsNumbers(scraping_numbers)
+        try:
+            self.number_of_rows = json.dumps(column_values)
+            self.save()
+        except Exception as e:
+            print e
+        return column_values, len_array
+
+    def calculateSuburb(self):
+        scraping_suburbs=self.get_json_variables().get("1", {})
+        from scripts.data_cleaner import calculateSuburb
+        return calculateSuburb(
+            scraping_suburbs, 
+            self.public_account.townhall,
+            self)
+
+    def __unicode__(self):
+        return u"%s %s"%(self.public_account, self.path)
