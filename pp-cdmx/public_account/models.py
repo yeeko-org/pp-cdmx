@@ -20,6 +20,8 @@ class PublicAccount(models.Model):
     # pages = models.TextField(blank=True, null=True, verbose_name=u"Paginas")
     period_pp = models.ForeignKey(PeriodPP, verbose_name=u"Periodo PP")
     variables = models.TextField(blank=True, null=True)
+    status = models.CharField(
+        blank=True, null=True, max_length=80, default=u"uncleaned")
 
     def __unicode__(self):
         return u"%s -- %s"%(self.period_pp, self.townhall)
@@ -52,6 +54,8 @@ class PPImage(models.Model):
     json_variables = models.TextField(blank=True, null=True)
     clean_data = models.TextField(blank=True, null=True)
     data_row_numbers=models.TextField(blank=True, null=True)
+    status = models.CharField(
+        blank=True, null=True, max_length=80, default=u"uncleaned")
     def get_json_variables(self):
         import json
         try:
