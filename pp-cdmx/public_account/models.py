@@ -24,6 +24,23 @@ class PublicAccount(models.Model):
     def __unicode__(self):
         return u"%s -- %s"%(self.period_pp, self.townhall)
 
+    def  column_formatter(self):
+        import numpy
+        suburbs_dict = []
+        th = self.townhall
+        period = self.period_pp
+        for image in PPImage.objects.filter(public_account=self):
+            number_results, len_array = image.calcColumnsNumbers()
+            standar_dev = numpy.std(len_array)
+            is_stable = standar_dev < 1
+            if image.json_variables:
+                init_json = json.loads(image.json_variables)
+            else:
+                init_json = {}
+            init_json["is_stable"] = is_stable
+            if is_stable:
+                number_of_rows = round(numpy.mean(len_array))
+
     class Meta:
         verbose_name = u"Cuenta Publica"
         verbose_name_plural = u"Cuentas Publicas"
@@ -34,7 +51,7 @@ class PPImage(models.Model):
     path = models.CharField(max_length=255)
     json_variables = models.TextField(blank=True, null=True)
     clean_data = models.TextField(blank=True, null=True)
-    number_of_rows=models.TextField(blank=True, null=True)
+    data_row_numbers=models.TextField(blank=True, null=True)
     def get_json_variables(self):
         import json
         try:
@@ -48,7 +65,7 @@ class PPImage(models.Model):
         scraping_numbers=self.get_json_variables().get("2", {})
         column_values, len_array = calcColumnsNumbers(scraping_numbers)
         try:
-            self.number_of_rows = json.dumps(column_values)
+            self.data_row_numbers = json.dumps(column_values)
             self.save()
         except Exception as e:
             print e
