@@ -65,23 +65,27 @@ class FinalProject(models.Model):
     # Ammounts
     # cambiar a decimal todos los float
     assigned = models.DecimalField(
-        max_digits=5, decimal_places=2,
+        max_digits=12, decimal_places=2,
         blank=True, null=True, verbose_name=u"Asignado")
     approved = models.DecimalField(
-        max_digits=5, decimal_places=2,
+        max_digits=12, decimal_places=2,
         blank=True, null=True, verbose_name=u"Aprobado")
     modified = models.DecimalField(
-        max_digits=5, decimal_places=2,
+        max_digits=12, decimal_places=2,
         blank=True,
         null=True,
         verbose_name=u"Modificado")
     executed = models.DecimalField(
-        max_digits=5, decimal_places=2,
+        max_digits=12, decimal_places=2,
         blank=True, null=True, verbose_name=u"Ejecutado")
 
     progress = models.DecimalField(
-        max_digits=5, decimal_places=2,
+        max_digits=6, decimal_places=2,
         blank=True, null=True, verbose_name=u"Avance del proyecto")
+
+    variation = models.DecimalField(
+        max_digits=6, decimal_places=2,
+        blank=True, null=True, verbose_name=u"Variacion")
 
     # Observations
     manual_capture = models.TextField(
