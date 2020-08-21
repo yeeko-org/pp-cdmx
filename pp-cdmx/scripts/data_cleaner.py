@@ -97,6 +97,7 @@ def calculateSuburb(data_subs, th, image):
             seq+=1
             the_dict = matchSuburb(rows, suburbs, seq, image)
             if the_dict:
+                #the_dict["image"]=image
                 column_values.append(the_dict)
     return column_values
 
@@ -257,7 +258,7 @@ def matchSuburb(row, suburbs, seq, image, period=2018):
         else:
             print normal_name
     if the_sub:
-        from projects.models import FinalProject
+        from project.models import FinalProject
         try:
             final_proy = FinalProject.objects.get(suburb__id=the_sub.id,
                 image__isnull=True)
@@ -276,14 +277,3 @@ def matchSuburb(row, suburbs, seq, image, period=2018):
 
 def similar(a, b):
     return SequenceMatcher(None, a, b).ratio()
-
-def calculateMissings(all_rows, th):
-    subs_with_match = [x for x in all_rows if x["suburb_id"]]
-    ids_included = [x["suburb_id"] for x in subs_with_match]
-    missings_subs = Suburb.objects.filter(
-        townhall__short_name=th).exclude(id__in=ids_included)
-    missing_rows = [idx for idx, x in enumerate(all_rows) if not x["suburb_id"]]
-    print len(missing_rows)
-    print len(missings_subs)
-    return missings_subs, missing_rows
-
