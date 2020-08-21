@@ -79,18 +79,29 @@ class PublicAccount(models.Model):
 
 
 
-        # if is_pa_stable:
-        #     #si existen filas huérfanos:
-        #     if len(all_orphan_rows):
-        #         print "haremos un match suavizado"
-        #         #LUCIAN: Esta función todavía no está lista
-        #         #flexibleMatchSuburb(all_orphan_rows, self)
-        #     else:
-        #         #LUCIAN: falta este campo
-        #         #pa.status = "completed"
-        #         #pa.save()
-        # else:
-        #     self.status = "inestable_images"
+            if is_pa_stable:
+                #si existen filas huérfanos:
+                len_orphan = len(all_orphan_rows)
+                new_orphan_rows = []
+                if len_orphan:
+                    print "haremos un match suavizado"
+                    orphan_subs = all_orphan_rows["suburbs"]
+                    all_orphan_rows["suburbs"] = flexibleMatchSuburb(orphan_subs, self)
+                    new_orphan_rows = formatter_orphan(all_images, all_orphan_rows)
+                    len_new_orphan = len(new_orphan_rows)
+                if not len_orphan or not len_new_orphan:
+                    self.status = "completed"
+                    self.save()
+                    return
+                else:
+                    print "hubo algunos datos que no logramos insertar"
+                    print new_orphan_rows
+                    self.status = "incompleted"
+                    self.save()
+                    return
+            if not is_pa_stable:
+                self.status = "inestable_images"
+                self.save()
 
     class Meta:
         verbose_name = u"Cuenta Publica"
@@ -145,11 +156,11 @@ class PPImage(models.Model):
         if stable_row:
             orphan_stable_subs = self.save_complete_rows(
                 ord_numbers, ord_suburbs)
-            all_orphan_rows["suburbs"].append(orphan_stable_subs)
+            all_orphan_rows["suburbs"]+=orphan_stable_subs
         else:
             print "inestable_suburbs"
-            all_orphan_rows["numbers"].append(ord_numbers)
-            all_orphan_rows["suburbs"].append(ord_suburbs)
+            all_orphan_rows["numbers"]+=ord_numbers
+            all_orphan_rows["suburbs"]+=ord_suburbs
             self.status = "inestable_suburbs"
             self.save()
         return all_orphan_rows
@@ -204,3 +215,50 @@ class PPImage(models.Model):
 
         def __unicode__(self):
             return u"%s %s"%(self.public_account, self.path)
+
+        
+        
+def flexibleMatchSuburb(orphan_subs, pa):
+    from geographic.models import Suburb
+    from scripts.data_cleaner import similar
+    print u"------------------------------------"
+    print orphan_subs
+    missing_row_idxs = [idx for idx, x in enumerate(orphan_subs) if not x["suburb_id"]]
+    missings_subs = Suburb.objects.filter(townhall=pa.townhall,
+                finalproject__period_pp=pa.period_pp,
+                finalproject__image__isnull=True)
+    for sub in missings_subs:
+        max_conc = 0
+        final_row_idx = -1
+        for row_idx in missing_row_idxs:
+            concordance = similar(sub.short_name, 
+                orphan_subs[row_idx]["raw_normalized"])
+            if concordance > 0.8 and concordance > max_conc:
+                final_row_idx = row_idx
+                max_conc = concordance 
+        if final_row_idx > -1:
+            orphan_subs[final_row_idx]["suburb_id"] = sub.id
+            orphan_subs[final_row_idx]["concordance"] = max_conc
+            print "-------------"
+            print sub.short_name
+            #print orphan_subs[final_row_idx]["raw_normalized"]
+            print orphan_subs[final_row_idx]
+    return orphan_subs
+
+
+
+def formatter_orphan(all_images, all_orphan_rows):
+    new_orphan_rows = {"suburbs":[], "numbers":[]}
+    print all_orphan_rows
+    for image in all_images:
+        current_suburbs = [x for x in all_orphan_rows["suburbs"] if x["image_id"] == image.id]
+        current_numbers = [x for x in all_orphan_rows["numbers"] if x["image_id"] == image.id]
+        #signfica que no coincidieron las columnas de ambos recortes:
+        if len(current_numbers):
+            new_orphan_rows = image.comprobate_stability(new_orphan_rows, 
+                                    current_numbers, current_suburbs)
+        else:
+            orphan_stable_subs = image.save_complete_rows(current_numbers,
+                                                             current_suburbs)
+            new_orphan_rows["suburbs"]+=orphan_stable_subs
+    return new_orphan_rows

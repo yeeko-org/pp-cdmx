@@ -97,7 +97,7 @@ def calculateSuburb(data_subs, th, image):
             seq+=1
             the_dict = matchSuburb(rows, suburbs, seq, image)
             if the_dict:
-                #the_dict["image"]=image
+                the_dict["image_id"]=image.id
                 column_values.append(the_dict)
     return column_values
 
