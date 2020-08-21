@@ -67,6 +67,7 @@ class PublicAccount(models.Model):
                         except Exception as e:
                             print e
                     complete_row["seq"] = idx
+                    complete_row["image_id"] = image.id
                     ord_numbers.append(complete_row)
                 all_orphan_rows = image.comprobate_stability(all_orphan_rows, 
                                         ord_numbers, ord_suburbs)
