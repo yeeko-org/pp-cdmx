@@ -52,7 +52,11 @@ class PublicAccount(models.Model):
             standar_dev = numpy.std(len_array)
             is_stable = standar_dev < 1
             if is_stable:
+                print "la imagen es estable"
                 rows_count = int(round(numpy.mean(len_array)))
+                print "columnas:"
+                print rows_count
+                print len_array
                 image.rows_count = rows_count
                 image.save()
 
@@ -65,6 +69,8 @@ class PublicAccount(models.Model):
                         try:
                             complete_row[ammount] = number_results[idx_amm][idx]
                         except Exception as e:
+                            print ammount
+                            print row
                             print e
                     complete_row["seq"] = idx
                     complete_row["image_id"] = image.id
@@ -160,8 +166,8 @@ class PPImage(models.Model):
         from pprint import pprint
         from project.models import FinalProject
         #LUCIAN: Estoy imprimiendo esto para ayudar a las pruebas
-        pprint(ordered_numbers)
-        pprint(ordered_suburbs)
+        #pprint(ordered_numbers)
+        #pprint(ordered_suburbs)
         #aquí vas a tomar, en el orden en el que están y los vas a insertar
         is_complete = True
         orphan_rows=[]
@@ -181,7 +187,7 @@ class PPImage(models.Model):
                     final_proj.variation = column_num.get("variation", {}).get("final_value")
                     final_proj.image=self
 
-                    pprint(final_proj.__dict__)
+                    #pprint(final_proj.__dict__)
                     final_proj.save()
             else:
                 final_proj=False

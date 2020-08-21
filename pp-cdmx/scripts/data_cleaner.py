@@ -76,7 +76,7 @@ def import_json(curr_pages):
                     except Exception as e:
                         raise e
                 ordered_numbers.append(complete_row)
-        print page[0]
+        #print page[0]
         print "--------"
         data_subs = page[1]["1"]
         page_result = calculateSuburb(data_subs, th, image)
@@ -97,7 +97,7 @@ def calculateSuburb(data_subs, th, image):
             seq+=1
             the_dict = matchSuburb(rows, suburbs, seq, image)
             if the_dict:
-                #the_dict["image"]=image
+                the_dict["image_id"]=image.id
                 column_values.append(the_dict)
     return column_values
 

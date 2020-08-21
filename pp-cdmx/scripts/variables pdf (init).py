@@ -1,7 +1,29 @@
 # -*- coding: utf-8 -*-
+from vision.get_columns import extractDataForLens
+
+path = u'G:\\Mi unidad\\YEEKO\\Clientes\\Ollin-Presupuesto participativo\\Bases de datos\\Cuenta Pública\\init\\p'
+
+from vision.get_columns import extractDataForLens
+
+from public_account.models import PPImage, PublicAccount
+from project.models import FinalProject
+
+FinalProject.objects.all().update(image=None)
+x=PPImage.objects.all().first()
+#y,z=x.calcColumnsNumbers()
+a=x.calculateSuburb()
+from pprint import pprint
+pprint(a)
+
+
+
+
+
+
+
 import re
 from geographic.models import *
-from difflib import SequenceMatcher
+
 import unidecode
 from public_account.models import *
 from period.models import *
@@ -20,349 +42,217 @@ data_from_lens = get_year_data(path_image, 2018, dels[0])
 data_for_tests = data_from_lens[dels[0]]
 
 
-def cleanSuburbName(text):
-    try:
-        final_name = unidecode.unidecode(text).upper()
-    except Exception as e:
-        print e
-        final_name = text
-    #Sustituimos el signo "OR" (|) por I latina
-    final_name = re.sub(r'(\|)', 'I', final_name)
-    final_name = re.sub(r'[^0-9a-zA-Z\s\(\)\|\_]', '', final_name)
-    final_name = final_name.upper()
-    #Sustituimos puntos por espacios
-    final_name = re.sub(r'\.', ' ', final_name)
-    final_name = final_name.strip()
-    #eliminamos espacios entre paréntesis ( U HAB ) --> (U HAB)
-    final_name = re.sub(r'\(\s?(.*)(\S+)\s?\)', '(\\1\\2)', final_name)
-    #compact_name = re.sub(r'[^0-9A-Z]', '', final_name)
-    return final_name
+##$env:GOOGLE_APPLICATION_CREDENTIALS="C:\Users\rick_\keys\googlelens.json"
 
-def buildSuburbComparename():
-    all_suburbs = Suburb.objects.all()
-    for sub in all_suburbs:
-        sub.short_name=cleanSuburbName(sub.name)
-        sub.save()
+from vision.get_columns import extractDataForLens
+path = u'G:\\Mi unidad\\YEEKO\\Clientes\\Ollin-Presupuesto participativo\\Bases de datos\\Cuenta Pública\\init\\p'
+curr_th = "AZC"
+extractDataForLens(path, th=curr_th)
 
 
-def import_json(curr_pages):
-    suburbs_dict = []
-    th = TownHall.objects.get(short_name=curr_pages["townhall"]) 
-    period = PeriodPP.objects.get(year=curr_pages["period"]) 
-    pa, created = PublicAccount.objects.get_or_create(period_pp=period, 
-        townhall=th)
-    pages_dict =  dict.items(curr_pages["images"])
-    #return pages_dict
-    for page in pages_dict:
-        image, created = PPImage.objects.get_org_create(
-            public_account=pa, path=page[0])
-        data_numbers = page[1]["2"]
-        number_results, len_array = calcColumnsNumbers(data_numbers, th)
+
+#Continuación de la función que ya te pedí en PublicAccount:
+
+#Lucian, creo que ya no es necesario importar esto:
+from public_account.models import PPImage, PublicAccount
+
+pa = PublicAccount.filter(suburb__shortname=curr_th)
+column_formatter(pa)
+
+#LUCIAN, en realidad hay que cambiar los pa por self
+#def la_funcion_que_agregaste(self):
+def column_formatter(self):
+    #LUCIAN: Esto es solo la continuación de lo que ya comenzaste
+    #Lucian, creo que ya no es necesario importar esto:
+    from public_account.models import PPImage, PublicAccount
+    is_pa_stable = True
+    all_images = PPImage.objects.filter(public_account=self)
+    all_orphan_rows: {"suburbs":[], "numbers":[]}
+    for image in all_images:
+        ord_suburbs= image.calculateSuburb()  
+        number_results, len_array = image.calcColumnsNumbers()
+        import numpy
         standar_dev = numpy.std(len_array)
         is_stable = standar_dev < 1
-        if image.json_variables:
-            init_json = json.loads(image.json_variables)
-        else:
-            init_json = {}
-        init_json["is_stable"] = is_stable
         if is_stable:
-            #json.dumps
-            #json.loads
-
-            number_of_rows = round(numpy.mean(len_array))
-
-            init_json["exact_rows"] = standar_dev == 0
-            init_json["rows_count"] = number_of_rows
-
-            ordered_numbers = []
-            for column in number_results:
-                ordered_numbers.append()
-            
-            amm_types= ["avance", "approved", "modified", "executed", "progress"]
-            for idx, row in ennumerate(xrange(number_of_rows)):
+            rows_count = int(round(numpy.mean(len_array)))
+            #LUCIAN: Hay que agregar "rows_count" al modelo
+            #x.rows_count = rows_count
+            #x.save()
+            ord_numbers = []
+            amm_types= ["progress", "approved", "modified", "executed", "variation"]
+            for idx, row in enumerate(xrange(rows_count)):
                 complete_row = {}
-                for idx_amm,ammount in ennumerate(amm_types):
+                is_valid = False
+                for idx_amm,ammount in enumerate(amm_types):
                     try:
                         complete_row[ammount] = number_results[idx_amm][idx]
                     except Exception as e:
-                        raise e
-                ordered_numbers.append(complete_row)
-        print page[0]
-        print "--------"
-        data_subs = page[1]["1"]
-        page_result = calculateSuburb(data_subs, th, image)
-        #print page_result
-        suburbs_dict+=page_result
-        #return number_results
-    return suburbs_dict
-
-
-curr_pages = data_from_lens["CUH"]
-import_json(curr_pages)
-
-
-pruebas = data_from_lens["CUH"]["images"]["0004"]
-for row in all_rows:
-    print "------------"
-    for r in row:
-        print r
-
-
-
-def calculateSuburb(data_subs, th, image):
-    column_values = []
-    #Antes que nada, validamos que sea una columna válida:
-    #total_words = 0
-    suburbs = Suburb.objects.filter(townhall=th)
-    seq = 0 
-    for meta in data_subs["data"]:
-        for rows in meta:
-            seq+=1
-            the_dict = matchSuburb(rows, suburbs, seq, image)
-            if the_dict:
-                column_values.append(the_dict)
-    return column_values
-
-
-def calcColumnsNumbers(data_numbers, th_short=None):
-    column_values = []
-    large_row = 0
-    seq = 0
-    column_number = 1 
-    current_len = 0
-    len_array = []
-    for rows in data_numbers["data"]:
-        is_ammount = (column_number > 1 and column_number < 5)
-        seq+=1
-        the_dict = calculateNumbers(rows, is_ammount)
-        if the_dict:
-            len_dict = len(the_dict)
-            large_row = large_row or len_dict
-            current_len+=len_dict
-            if current_len +2  >= large_row:
-                column_number+=1
-                column_values.append(the_dict)
-                print current_len
-                len_array.append(current_len)
-                current_len = 0
-            else:
-                column_values[-1]+=the_dict
-            #column_values[column_number-1]=the_dict
-    return column_values, len_array
-
-
-def calculateNumbers(rows, is_ammount, seq=None):
-    #### Variables que nos ayudarán:
-    # Patrón REGEX para porcentajes válidos.
-    #re_ammount = re.compile(
-        #r'^(\d[\,\.](?=\d{3}))?(\d{1,3}[\,\.](?=\d{3}))?(\d{1,3})(\.\d{2})?$')
-    re_ammount = re.compile( r'^\d{1,7}(\.\d{2})?$')
-    re_percent = re.compile( r'^\-?\d{1,3}(\.\d{1,2})?[489%]?\)?$')
-    re_compara = re_ammount if is_ammount else re_percent
-    has_percent = re.compile(r'[489%]$')
-    has_decimals = re.compile(r'\d{2}$')
-    re_format = has_decimals if is_ammount else has_percent    
-    column_values = []
-    count_special_format = 0
-    has_special_format = False
-    for row in rows:
-        new_value = row
-        raw_non_spaces = len(re.sub(r'[^\S]', '', new_value))
-        #Sustituimos las Bs por 8
-        new_value = re.sub(r'(B)', '8', new_value)
-        #Sustituimos las Os por 0
-        new_value = re.sub(r'(O)', '0', new_value)
-        new_value = re.sub(r'(/)', ',', new_value)
-        if bool(re.search(r'(3/1)', new_value)):
-            continue
-        #Nos quedamos solo con lo que utilizaremos
-        new_value = re.sub(r'[^0-9\,\.\s\-\%\(\)]', '', new_value)
-        clean_non_spaces = len(re.sub(r'[^\S]', '', new_value))
-        #La mayor parte que sean los números
-        try:
-            if (clean_non_spaces / float(raw_non_spaces)) < 0.8:
-                print "casi todos son letras"
-                continue
-        except Exception as e:
-            print e
-            continue
-        #Limpieza básica de espacios:
-        new_value = new_value.strip()
-        #Se quitan los espacios alrededor de puntos y comas (siempre a puntos) ||  4 , 5 --> 4,5
-        new_value = re.sub(r'(\d)\s?[\.,]\s?(\d)', '\\1.\\2', new_value)
-        if not is_ammount:
-            #Se quita el espacio entre el número y el porcentaje, en caso de existir.
-            new_value = re.sub(r'(\d)\s?%', '\\1%', new_value)
-            #Se quitan los espacios después del abrir paréntesis y antes de cerrarlos
-            new_value = re.sub(r'\(\s?(.*)(\S+)\s?\)', '(\\1\\2)', new_value)
-            # new_value = re.sub(r'\(\s?(.+)\s?\)', '\\1', new_value)
+                        print e
+                complete_row["seq"] = idx
+                ##RICK: -->
+                complete_row["image_id"] = image.id
+                ##<----
+                ord_numbers.append(complete_row)
+            all_orphan_rows = comprobate_stability(all_orphan_rows, 
+                                    ord_numbers, ord_suburbs, image)
         else:
-            #Si después de los puntos hay 3 caracteres, los eliminamos:
-            new_value = re.sub(r'\.(\d{3})', '\\1', new_value)
-        #Se separan los números que estén en el mismo elemento
-        if (is_ammount and len(re.sub(r'[^\d]', '', new_value)) < 10 
-            and len(re.sub(r'[^\1-9]', '', new_value)) > 2):
-            new_value = re.sub(r'[^\d\.]', '', new_value)
-        splited = re.split(r'\s', new_value)
-        for unity in splited:
-            #Se cuentan si tiene el formato percent o decimal
-            count_special_format+= 1 if bool(re_format.search(unity)) else 0
-            ref_objs = {"raw_unity": unity}
-            #Se busca si tienen alguno de los formatos posibles:
-            ref_objs["correct_format"] = bool(re_compara.search(unity))
-            if (len(splited)>1):
-                ref_objs["raw_origin"] = row
-            column_values.append(ref_objs)
-    #Si la mayoría tienen el formato porcentaje, asumimos que todos lo tienen:
-    len_column = len(column_values)
-    if len_column:
-        has_special_format = count_special_format / float(len_column) >= 0.75
+            print "inestable_numbers"
+            #LUCIAN: Falta el siguiente campo en el modelo:
+            #image.status = "inestable_numbers"
+            #image.save()
+            is_pa_stable = False
+            continue
+    if is_pa_stable:
+        #si existen filas huérfanos:
+        len_orphan = len(all_orphan_rows)
+        new_orphan_rows = []
+        if len_orphan:
+            print "haremos un match suavizado"
+            orphan_subs = all_orphan_rows["suburbs"]
+            all_orphan_rows["suburbs"] = flexibleMatchSuburb(orphan_subs, self)
+            new_orphan_rows = formatter_orphan(all_images, all_orphan_rows)
+            len_new_orphan = len(new_orphan_rows)
+        if not len_orphan or not len_new_orphan:
+            self.status = "completed"
+            self.save()
+            return
+        else:
+            print "hubo algunos datos que no logramos insertar"
+            print new_orphan_rows
+            self.status = "incompleted"
+            self.save()
+            return
+    if not is_pa_stable:
+        self.status = "inestable_images"
+        self.save()
+
+
+def formatter_orphan(all_images, all_orphan_rows):
+    new_orphan_rows = {"suburbs":[], "numbers":[]}
+    for image in all_images:
+        current_suburbs = [x for x in all_orphan_rows["suburbs"] if x["image_id"] == image.id]
+        current_numbers = [x for x in all_orphan_rows["numbers"] if x["image_id"] == image.id]
+        #signfica que no coincidieron las columnas de ambos recortes:
+        if len(current_numbers):
+            new_orphan_rows = comprobate_stability(new_orphan_rows, 
+                                    current_numbers, current_suburbs, image)
+        else:
+            orphan_stable_subs = save_complete_rows(image, current_numbers,
+                                                             current_suburbs)
+            new_orphan_rows["suburbs"].append(orphan_stable_subs)
+    return new_orphan_rows
+
+
+
+
+
+def comprobate_stability(all_orphan_rows, ord_numbers, ord_suburbs, image):
+    stable_row = len(ord_numbers) == len(ord_suburbs)
+    if not stable_row:
+        real_ord_suburbs = [x for x in ord_suburbs if x["suburb_id"]]
+        if len(ord_numbers) == len(real_ord_suburbs):
+            stable_row = True
+            ord_suburbs = real_ord_suburbs
+    #el número de columnas coincide:
+    if stable_row:
+        orphan_stable_subs = save_complete_rows(image, ord_numbers, ord_suburbs)
+        all_orphan_rows["suburbs"].append(orphan_stable_subs)
     else:
-        return False
-    for new_value in column_values:
-        if new_value["correct_format"]:
-            only_ints = new_value["raw_unity"]
-            if (has_special_format and not is_ammount):
-                only_ints = re.sub(re_format, '', only_ints)
-            if not only_ints:
-                continue
-            float_value=float(only_ints)
-            if is_ammount and 0<float_value<1000:
-                column_values.remove(new_value)
-                continue
-            new_value["final_value"] = float_value
-    #print column_values
-    return column_values
+        print "inestable_suburbs"
+        all_orphan_rows["numbers"].append(number_results)
+        all_orphan_rows["suburbs"].append(ord_suburbs)
+        #LUCIAN: Falta el siguiente campo en el modelo:
+        #image.status = "inestable_suburbs"
+        #image.save()
+    return all_orphan_rows
 
 
 
-def matchSuburb(row, suburbs, seq, image, period=2018):
-    #identificamos el format (11-034)
-    re_has_cve = re.compile(r'^.*(\d{2})\-(\d{3})(?:\D|$).*')
-    normal_name = cleanSuburbName(row)
-    raw_non_spaces = len(re.sub(r'[^\S]', '', normal_name))
-    #print normal_name
-    
-    #Validadores para excluir palabras que ya conocemos
-    if bool(re.search(
-        r'(COLONIA O PUEBLO|PUEBLO ORIGINARIO|UNIDAD RESPON)', normal_name)):
-        return False
-        #continue
-    #Esto significa que llegamos al final
-    elif bool(re.search(r'(SE REFIERE EL|REMANENTE|TOTAL|AUTORIZADO|ELABORO)', normal_name)):
-        return False
-        #break
-    #En el caso de que se coma letras de otra columna
-    elif raw_non_spaces < 4:
-        return False
-        #continue
-    
-    new_dict = {"suburb_id": None}
-    #Se busca la clave de la colonia
-    the_sub = False
-    if (bool(re.search(re_has_cve, row))):
-        cve_subur = re.sub(re_has_cve, '\\1-\\2', row)
-        print cve_subur
-        if int(cve_subur[:2]) < 17:
-            try:
-                the_sub = suburbs.get(cve_col=cve_subur)
-            except Exception as e:
-                print 'No encontrado'
-    if not the_sub:
-        subs_found = suburbs.filter(short_name=normal_name,
-            finalproject__period_pp__year=period,
-            finalproject__image__isnull=True)
-        if subs_found.count() > 1:
-            print "varios"
-            print subs_found
-        elif subs_found.count()  == 1:
-            the_sub = subs_found[0]
-        else:
-            print normal_name
-    if the_sub:
-        try:
-            final_proy = FinalProject.objects.get(suburb__id=the_sub.id,
-                image__isnull=True)
-            final_proy.image = image
-            final_proy.save()
-            new_dict["suburb_id"] = the_sub.id
-        except Exception as e:
-            print e
-    new_dict["raw_origin"] = row
-    new_dict["raw_normalized"] = normal_name
-    new_dict["seq"] = seq
-    return new_dict
+def save_complete_rows(image, ordered_numbers, ordered_suburbs):
+    from pprint import pprint
+    #LUCIAN: checa esta función, existe?
+    from scripts.common import get_or_none
+    from project.models import FinalProject
+    #LUCIAN: Estoy imprimiendo esto para ayudar a las pruebas
+    pprint(ordered_numbers)
+    pprint(ordered_suburbs)
+    #aquí vas a tomar, en el orden en el que están y los vas a insertar
+    is_complete = True
+    orphan_rows=[]
+    for idx, column_num in ennumerate(ordered_numbers):
+        sub = ordered_suburbs[idx]
+        suburb_id = sub.suburb_id
+        if suburb_id:
+            #LUCIAN, estoy harcodeando 2018, ¿de dónde debe salir?
+            final_proj = FinalProject.objects.get_or_none(
+                suburb__id=suburb_id, period_pp=2018)
+            if final_proj:
+                final_proj.approved = column_num.approved
+                final_proj.modified = column_num.modified
+                final_proj.executed = column_num.executed
+                final_proj.progress = column_num.progress
+                #LUCIAN: el siguiente campo todavía no existe en la base de datos, agrégalo
+                #final_proj.variation = column_num.variation
+                final_proj.image=x
+                final_proj.save()
+        if not final_proj:
+            ##RICK---> Estoy hay que evitarlo la segunda vez
+            sub["number_data"] = column_num
+            ##<----
+            orphan_rows.append(sub)
+            is_complete=False
+            continue
+    if is_complete:
+        #LUCIAN: La siguiente variable no existe en el modelo, hay que agregarla:
+        #image.status = "completed"
+        #image.save()
+        print "completed"
+    else:
+        #LUCIAN: falta campo
+        #image.status = "stable_row"
+        print "Hay cosas que faltan por completar"
+    return orphan_rows
+
+
+
+#def flexibleMatchSuburb(townhall_data):
+def flexibleMatchSuburb(orphan_subs, pa):
+    from geographic.models import Suburb
+    missing_row_idxs = [idx for idx, x in enumerate(orphan_subs) if not x["suburb_id"]]
+    miss_subs = Suburb.objects.filter(townhall=pa.townhall,
+                finalproject__period_pp__year=pa.period_pp,
+                finalproject__image__isnull=True)
+    for sub in missings_subs:
+        max_conc = 0
+        final_row_idx = -1
+        for row_idx in missing_row_idxs:
+            concordance = similar(sub.short_name, 
+                orphan_subs[row_idx]["raw_normalized"])
+            if concordance > 0.8 and concordance > max_conc:
+                final_row_idx = row_idx
+                max_conc = concordance 
+        if final_row_idx > -1:
+            orphan_subs[final_row_idx]["suburb_id"] = sub.id
+            orphan_subs[final_row_idx]["concordance"] = max_conc
+            print "-------------"
+            print sub.short_name
+            #print orphan_subs[final_row_idx]["raw_normalized"]
+            print orphan_subs[final_row_idx]
+    return orphan_subs
 
 
 
 
-def similar(a, b):
-    return SequenceMatcher(None, a, b).ratio()
 
+    miss_subs, miss_rows = calculateMissings(all_rows, th)
 
-
-def foundAllMatches():
-
-
-for idx in [0]:
-
-idx = 0
-all_rows = import_json(all_pages[idx])
-
-#subs_count = Suburb.objects.filter(
-    #townhall__short_name=th).count()
-
-
-
-def calculateMissings(all_rows, th):
-    subs_with_match = [x for x in all_rows if x["suburb_id"]]
-    ids_included = [x["suburb_id"] for x in subs_with_match]
-    missings_subs = Suburb.objects.filter(
-        townhall__short_name=th).exclude(id__in=ids_included)
-    missing_rows = [idx for idx, x in enumerate(all_rows) if not x["suburb_id"]]
-    print len(missing_rows)
-    print len(missings_subs)
-    return missings_subs, missing_rows
-
-
-hidalgo = []
-for x in all_rows:
-    if "ESTADO" in x["raw_normalized"]:
-        hidalgo.append(x)
-
-
-missings_subs, missing_rows = calculateMissings(all_rows, th)
-
-
-for sub in missings_subs:
-    max_conc = 0
-    final_row_idx = -1
-    for row_idx in missing_rows:
-        concordance = similar(sub.short_name, 
-            all_rows[row_idx]["raw_normalized"])
-        if concordance > 0.8 and concordance > max_conc:
-            final_row_idx = row_idx
-            max_conc = concordance 
-    if final_row_idx > -1:
-        all_rows[final_row_idx]["suburb_id"] = sub.id
-        all_rows[final_row_idx]["concordance"] = max_conc
-        print "-------------"
+    for sub in miss_subs:
         print sub.short_name
-        #print all_rows[final_row_idx]["raw_normalized"]
-        print all_rows[final_row_idx]
 
-
-missings_subs, missing_rows = calculateMissings(all_rows, th)
-
-for sub in missings_subs:
-    print sub.short_name
-
-for row_idx in missing_rows:
-    print all_rows[row_idx]["raw_normalized"]
-    print all_rows[row_idx]["suburb_id"]
-
-
-
+    for row_idx in miss_rows:
+        print all_rows[row_idx]["raw_normalized"]
+        print all_rows[row_idx]["suburb_id"]
 
 
 print ids_included
@@ -370,6 +260,23 @@ print "Total:"
 print subs_count
 print "completos:"
 print len(subs_with_match)
+
+
+
+
+
+
+def foundAllMatches():
+
+
+    for idx in [0]:
+
+    idx = 0
+    all_rows = import_json(all_pages[idx])
+
+    #subs_count = Suburb.objects.filter(
+        #townhall__short_name=th).count()
+
 
 
 foundAllMatches()
@@ -425,3 +332,7 @@ palabras / frases
 #considerar los siguientes casos:
 # SANTA FE (PBLO), SANTA FE (U HAB)
 #(U HAB) (U.HAB.) (U. HAB.) --> (U HAB)
+
+
+
+
