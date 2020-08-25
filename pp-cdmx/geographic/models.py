@@ -72,7 +72,7 @@ class Suburb(models.Model):
         verbose_name=u"Nombre  Corto")
     compact_name = models.CharField(
         max_length=140, blank=True, null=True,
-        verbose_name=u"Nombre sin espacios ni caracteres")
+        verbose_name=u"Nombre alternativo seguro")
     townhall = models.ForeignKey(
         TownHall, verbose_name=u"Alcaldía")
     suburb_type = models.ForeignKey(

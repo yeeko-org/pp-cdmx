@@ -82,5 +82,10 @@ def sin_pob_2010():
 
 
 
-
+def comprobate_correct_suburbs():
+    from geographic.models import Suburb
+    all_suburbs = Suburb.objects.all()
+    for sub in all_suburbs:
+        if int(sub.cve_col[:2]) != sub.townhall.cve_alc:
+            print sub
 
