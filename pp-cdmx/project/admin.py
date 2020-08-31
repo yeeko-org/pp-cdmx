@@ -54,16 +54,25 @@ class FinalProjectAdmin(admin.ModelAdmin):
         ["Ammounts", {
             "classes": ["collapse"],
             "fields": [
-                "assigned",  # "approuved",
+                "progress",  # "approuved",
+                "approved",  # "excecuted",
                 "modified",  # "excecuted",
-                "progress"
+                "executed",  # "excecuted",
+                "variation"  # "excecuted",
             ]
         }],
         ["Observations", {
             "classes": ["collapse"],
             "fields": [
                 "observation", "validated", "user_validation",
-                "manual_capture", "pre_clasification", "image"
+                "manual_capture", "pre_clasification"
+            ]
+        }],
+        ["Procesados de Google Vision", {
+            "classes": ["collapse"],
+            "fields": [
+                "image", "similar_suburb_name", "name_in_pa",
+                "json_variables", "error_cell", "inserted_data"
             ]
         }]
     ]

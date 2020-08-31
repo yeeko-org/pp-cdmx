@@ -98,7 +98,19 @@ class FinalProject(models.Model):
     user_validation = models.ForeignKey(
         User, blank=True, null=True, verbose_name=u"Usuario validador")
 
+    # Variables from Vision
     image = models.ForeignKey(PPImage, blank=True, null=True)
+    similar_suburb_name = models.DecimalField(
+        max_digits=3, decimal_places=2, default=0, blank=True, null=True,
+        verbose_name=u"Nivel de similitud de nombre (-1 cuando es forzado)")
+    name_in_pa= models.CharField( max_length=140, blank=True, null=True,
+        verbose_name=u"Nombre como aparece en cuenta pública")
+    json_variables = models.TextField(blank=True, null=True, 
+        verbose_name=u"Variables originales de su columna")
+    error_cell = models.TextField(blank=True, null=True, 
+        verbose_name=u"pila de errores")
+    inserted_data = models.BooleanField(default=False, 
+        verbose_name=u"Datos insertados desde cuenta pública")
 
     # pre_clasification
     # manuela_

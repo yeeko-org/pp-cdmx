@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import re
 from geographic.models import *
-from difflib import SequenceMatcher
 import unidecode
 from public_account.models import *
 from period.models import *
@@ -18,16 +17,26 @@ def cleanSuburbName(text):
         final_name = text
     #Sustituimos el signo "OR" (|) por I latina
     final_name = re.sub(r'(\|)', 'I', final_name)
-    final_name = re.sub(r'[^0-9a-zA-Z\s\(\)\|\_]', '', final_name)
+    final_name = re.sub(ur'[^0-9a-zA-Z\s\(\)\|\_\-\/ÑÁÉÍÓÚ\º\.\,]', '', final_name)    
     final_name = final_name.upper()
     #Sustituimos puntos por espacios
-    final_name = re.sub(r'\.', ' ', final_name)
-    final_name = final_name.strip()
+    final_name = re.sub(r'[\.\,\-]', ' ', final_name)
+    #quitamos dobles espacios
+    final_name = re.sub(r' +', ' ', final_name)
     #eliminamos espacios entre paréntesis ( U HAB ) --> (U HAB)
-    final_name = re.sub(r'\(\s?(\D*)\s?\)', r'(\1)', final_name)
+    final_name = re.sub(r'\(\s?', r'(', final_name)
+    final_name = re.sub(r'\s?\)', r')', final_name)
+    #Algunos remplazos comunes:
+    re_uhab = re.compile(r'\(\s?(CONJ HAB|UNIDAD HABITACIONAL|U HABS|CONJUNTO HABITACIONAL)\s?\)')
+    final_name = re.sub(re_uhab, r'(U HAB)', final_name)
+    final_name = re.sub(r'\(\s?(FRACCIONAMIENTO)\s?\)', '(FRACC)', final_name)
+    final_name = re.sub(ur'\(\s?(AMPLIACION|AMPLIACIÓN)\s?\)', '(AMPL)', final_name)
     #Eliminamos la clave en el normal_name
-    re_cve = re.compile(r'(\(?\s?\d{2})\s?\D?\s?(\d{3}\s?\)?)')
+    re_cve = re.compile(r'(\(?\d{2})\s?\D?\s?(\d{3}\)?)')
     final_name = re.sub(re_cve, '', final_name)
+    final_name = final_name.strip()
+    #quitamos dobles espacios
+    final_name = re.sub(r' +', ' ', final_name)    
     #compact_name = re.sub(r'[^0-9A-Z]', '', final_name)
     return final_name
 
@@ -42,7 +51,6 @@ def calculateSuburb(data_subs, image):
     #Antes que nada, validamos que sea una columna válida:
     #total_words = 0
     suburbs = Suburb.objects.filter(townhall=image.public_account.townhall)
-    seq = 0 
     raw_collection = []
     need_jump = False
     for meta in data_subs["data"]:
@@ -61,15 +69,14 @@ def calculateSuburb(data_subs, image):
             after_base = raw_collection[idx_raw+1]
             comb_base = "%s %s"%(row, after_base)
         except Exception as e:
-            print "no hay siguiente"
             after_base = False
         curr = get_data_suburb(row, suburbs, image)
 
-        if curr["name"] == False:
+        if not curr["name"]:
             continue
         #El extraño caso:
         elif curr["id"] and curr["cve"] and curr["id"] != curr["cve"]:
-            image.set_new_error("%s row: %s"%(
+            set_new_error(image, "%s row: %s"%(
                 u"Se encontraron dos claves en el mismo lugar", row))
             type_comb = 'error'
         #El registro tiene sentido en sí mismo:
@@ -85,8 +92,11 @@ def calculateSuburb(data_subs, image):
             if not after["name"]:
                 need_jump = True
 
+            if after["name"] == False:
+                can_be_comb = False
+                after_base = False
             #Cuando el siguiente registro tiene sentido por sí mismo:
-            if after["id"]:
+            elif after["id"]:
                 can_be_comb = False
             else:
                 #Los siguientes casos asument que hay ID actual:
@@ -116,7 +126,7 @@ def calculateSuburb(data_subs, image):
                     try:
                         sub_name = suburbs.get(id=after["cve"]).short_name
                     except Exception as e:
-                        image.set_new_error("%s%s id: "%(u"Había cve sig pero" 
+                        set_new_error(image, "%s%s id: "%(u"Había cve sig pero" 
                             " no lo hallamos", after["cve"]))
                         sub_name= ""
                     comb_coinc = similar(comb["name"], sub_name)
@@ -147,28 +157,52 @@ def calculateSuburb(data_subs, image):
                 try:
                     column_values[-1]["can_be_comb"] = False
                 except Exception as e:
-                    print "no se puede setear el previo"
+                    if idx_raw:
+                        print "no puede setear el previo"
+                    else:
+                        pass
+                try:
+                    column_values[-2]["can_be_triple"] = False
+                except Exception as e:
+                    pass
     
+
+        triple_base = False    
         if sub_id:
-            sub_id = saveFinalProjSuburb(sub_id, image)
+            sub_id = saveFinalProjSuburb(sub_id, image, 1)
+        elif after_base and can_be_comb:
+            try:
+                triple_text = raw_collection[idx_raw+2]
+                triple_base = "%s %s"%(comb_base, triple_text)
+                triple = get_data_suburb(triple_base, suburbs, image)
+            except Exception as e:
+                pass
+
+
+
 
         if sub_id and not type_comb:
             type_comb = 'curr'
             can_be_comb = False
 
 
-        new_dict = {"seq": seq,
+        new_dict = {"seq": idx_raw,
                     "suburb_id": sub_id,
                     "image_id": image.id,
                     "type_comb": type_comb,
                     "can_be_comb": can_be_comb,
                     "curr": curr["name"],
-                    "curr_raw": row}
+                    "curr_raw": row,
+                    "invalid": False}
         if after_base and type_comb != "error":
             new_dict["after"] = after["name"]
             new_dict["comb"] = comb["name"]
             new_dict["comb_raw"] = comb_base
-        seq+=1
+        if triple_base:
+            if triple["name"]:
+                new_dict["triple"] = triple["name"]
+                new_dict["can_be_triple"] = True
+
         column_values.append(new_dict)
     return column_values
 
@@ -188,10 +222,10 @@ def get_normal_name(row):
     raw_non_spaces = len(re.sub(r'[^\w]', '', normal_name))
     #Validadores para excluir palabras que ya conocemos
     if bool(re.search(
-        r'(COLONIA O PUEBLO|PUEBLO ORIGINARIO|UNIDAD RESPON)', normal_name)):
+        r'(COLONIA O PUEBLO|ORIGINARIO|UNIDAD RESPON)', normal_name)):
         return False
     #Esto significa que llegamos al final
-    elif bool(re.search(r'(REFIERE|REMANENTE|TOTAL|AUTORI|ELABORO|LABORADO)',
+    elif bool(re.search(r'(REFIERE|REMANENTE|TOTAL|AUTORI|ELABORO|LABORADO|DIRECTOR)',
         normal_name)):
         return False
     #En el caso de que se coma letras de otra columna
@@ -224,35 +258,38 @@ def get_suburb_id(normal_name, suburbs, image):
         finalproject__period_pp=image.public_account.period_pp,
         finalproject__image__isnull=True)
     if subs_found.count() > 1:
-        image.set_new_error("%s id: "%(
-            u"Se encontraron vario suburbs con el name", normal_name))
+        set_new_error(image, "%s id: "%(
+            u"Se encontraron varios suburbs con el name", normal_name))
     elif subs_found.count()  == 1:
         return subs_found.first().id
     else:
         return None
 
 def similar(a, b):
+    from difflib import SequenceMatcher
     if a and b:
         return SequenceMatcher(None, a, b).ratio()
     else:
         return 0
 
 
-def saveFinalProjSuburb(sub_id, image):
+def saveFinalProjSuburb(sub_id, image, simil):
     from project.models import FinalProject
     try:
         final_proy = FinalProject.objects.get(suburb__id=sub_id,
             image__isnull=True)
         final_proy.image = image
+        final_proy.similar_suburb_name = simil
         final_proy.save()
         return sub_id
     except Exception as e:
-        print "había ID pero no encontramos FinalProject"
+        set_new_error(image, "El ID %s no lo encontramos en FinalProject"%sub_id)
+        print e
         #print normal_name
         return None
 
 
-def calcColumnsNumbers(data_numbers, th_short=None):
+def calcColumnsNumbers(data_numbers, strict=False):
     column_values = []
     large_row = 0
     #seq = 0
@@ -263,11 +300,10 @@ def calcColumnsNumbers(data_numbers, th_short=None):
     collects, numbers_count = clean_no_numbers(data_numbers["data"])
     media_rows = numbers_count / 5
 
-
     for idx, rows in enumerate(collects):
         is_ammount = (column_number > 1 and column_number < 5)
         #seq+=1
-        the_dict = calculateNumbers(rows, is_ammount)
+        the_dict = calculateNumbers(rows, is_ammount, strict)
         if the_dict:
             len_dict = len(the_dict)
             current_len+=len_dict
@@ -305,6 +341,8 @@ def clean_no_numbers(collects):
             new_value = re.sub(r'(B)', '8', new_value)
             #Sustituimos las Os por 0
             new_value = re.sub(r'(O)', '0', new_value)
+            #Sustituimos las Ss por 5
+            new_value = re.sub(r'(s|S)', '5', new_value)
             #identificamos títulos
             if re.match(r'3\s?\/\s?1', new_value):
                 print "es el título 3/1"
@@ -337,15 +375,15 @@ def clean_no_numbers(collects):
     return new_collects, numbers_count
 
 
-def calculateNumbers(rows, is_ammount, seq=None):
+def calculateNumbers(rows, is_ammount, strict=False):
     #### Variables que nos ayudarán:
     # Patrón REGEX para porcentajes válidos.
     #re_ammount = re.compile(
         #r'^(\d[\,\.](?=\d{3}))?(\d{1,3}[\,\.](?=\d{3}))?(\d{1,3})(\.\d{2})?$')
     re_ammount = re.compile( r'^\d{1,7}(\.\d{2})?$')
-    re_percent = re.compile( r'^\-?\d{1,3}(\.\d{1,2})?[489%]?\)?$')
+    re_percent = re.compile( r'^\-?\d{1,3}(\.\d{1,2})?[4895%]?\)?$')
     re_compara = re_ammount if is_ammount else re_percent
-    has_percent = re.compile(r'[489%]$')
+    has_percent = re.compile(r'[4895%]$')
     has_decimals = re.compile(r'\d{2}$')
     re_format = has_decimals if is_ammount else has_percent    
     column_values = []
@@ -399,5 +437,17 @@ def calculateNumbers(rows, is_ammount, seq=None):
                 column_values.remove(new_value)
                 continue
             new_value["final_value"] = float_value
+        elif strict:
+            column_values.remove(new_value)
     #print column_values
     return column_values
+
+
+def set_new_error(model, text_error):
+    current_notes = model.error_cell
+    #print text_error
+    if current_notes:
+        model.error_cell = "%s\n%s"%(current_notes, text_error)
+    else:
+        model.error_cell = text_error
+    model.save()

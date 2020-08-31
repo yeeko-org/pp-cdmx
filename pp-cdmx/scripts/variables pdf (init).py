@@ -1,60 +1,15 @@
-# -*- coding: utf-8 -*-
-from vision.get_columns import extractDataForLens
+from scripts.exercises  import *
 
-path = u'G:\\Mi unidad\\YEEKO\\Clientes\\Ollin-Presupuesto participativo\\Bases de datos\\Cuenta Pública\\init\\p'
 
-from vision.get_columns import extractDataForLens
+extract_only_pages("AO", '0002')
 
 
 
-def execute_townhall(th , need_lens=False, is_test=True):
-    from public_account.models import PPImage, PublicAccount
-    from project.models import FinalProject
-    if need_lens:
-        extractDataForLens(path, th=th)
-    public_account=PublicAccount.objects.filter(townhall__short_name=th).first()
-    public_account.column_formatter(is_test)
-    print print_results(th)
+from scripts.exercises  import *
+execute_townhall('AZC', False, True)
 
-def print_results(th):
-    from project.models import FinalProject
-    print "*********************"
-    print th
-    won = FinalProject.objects.filter(approved__isnull=False, 
-        suburb__townhall__short_name=th).count()
-    no_won = FinalProject.objects.filter(approved__isnull=True,
-        suburb__townhall__short_name=th).count()
-    print "%s  -->logrados"%won
-    print "%s  --> no logrados:"%no_won
-
-
-def execute_all_townhalls():
-    from geographic.models import TownHall
-    for th in TownHall.objects.all():
-        execute_townhall(th.short_name)
-
-def print_all_results():
-    from project.models import FinalProject
-    from geographic.models import TownHall
-    for th in TownHall.objects.all():
-        print_results(th.short_name)
-    print "*********************"
-    print "RESULTADOS GLOBALES"
-    print "logrados:"
-    print FinalProject.objects.filter(approved__isnull=False).count()
-    print "no logrados:"
-    print FinalProject.objects.filter(approved__isnull=True).count()
-
-
-def lens_th(th):
-    execute_townhall(th, True, True)
-
-
-def extract_only_pages(th, page):
-    from public_account.models import PPImage, PublicAccount
-    public_account=PublicAccount.objects.filter(townhall__short_name=th).first()
-    public_account.column_formatter(True, page)
-
+lst =[10,10,9,9,8]
+max(set(lst), key=lst.count)
 
 
 
@@ -63,23 +18,61 @@ all_ths = ["CUH", "CUJ", "TLP", "VC", "XO", "AO", "IZT", "AZC", "TLH", "MC", "MH
 
 #execute_townhall(all_ths[3])
 
-from geographic.models import Suburb
+from scripts.exercises  import *
+print_all_results()
 
 
-execute_townhall('VC')
+
+lens_th('CUJ')
+
+lens_th('IZP')
 
 
-extract_only_pages("VC", 2)
-
-lens_th('VC')
-lens_th('IZT')
 
 
-ref = 'FUENTES DE AZCAPOTZALCOPARQUES DE AZCAPOTZALCO (U HAB)'
-con = 'FUENTES DE AZCAPOTZALCO  PARQUES DE'
+
+
+
+
+
+
+
+
+
+
+from geographic.models import *
+from project.models import *
+from public_account.models import *
+
+
+FinalProject.objects.filter(suburb__townhall__short_name="MIL", image__isnull=True).count()
+FinalProject.objects.filter(suburb__townhall__short_name="MIL", image__isnull=False).count()
+
+Suburb.object.filter()
+
+
+
+
+
+
+from scripts.data_cleaner import buildSuburbComparename
+
+buildSuburbComparename()
+
+
+
+
+
+import re
+
+re.sub(r'\(\s?(CONJ HAB|UNIDAD HABITACIONAL|U HABS)\s?\)', '(U HAB)', "KENNEDY (UNIDAD HABITACIONAL)")
+
+ref = 'VILLA MILPA ALTA (U HAB)'
+con = 'VILLA MILPA ALTA'
 sin = 'FUENTES DE AZCAPOTZALCO  PARQUES DE AZCAPOTZALCO (U HAB)'
 
 from scripts.data_cleaner import similar
+
 similar(ref, con)
 similar(ref, sin)
 
