@@ -14,14 +14,16 @@ def block_fy(e):
 def block_fx(e):
     return e['fx']
 
+
 def get_vertices(vertices):
-    data=[]
+    data = []
     for vertice in vertices:
         data.append({
-            "x":vertice.x,
-            "y":vertice.y
-            })
+            "x": vertice.x,
+            "y": vertice.y
+        })
     return data
+
 
 def get_data_order(path_file):
     from google.cloud import vision
@@ -43,16 +45,17 @@ def get_data_order(path_file):
     index_fc = page.width / 8
     for block in page.blocks:
         total_text = []
-        data_paragraphs=[]
+        data_paragraphs = []
         for paragraph in block.paragraphs:
-            data_words=[]
+            data_words = []
             for word in paragraph.words:
                 word_symbols = []
-                symbols_data=[]
+                symbols_data = []
+                detected_break = False
                 for symbol in word.symbols:
                     word_symbols.append(symbol.text)
 
-                    symbol_data={
+                    symbol_data = {
                         "text": symbol.text,
                         "confidence": symbol.confidence,
                         "vertices": get_vertices(symbol.bounding_box.vertices)
@@ -71,16 +74,18 @@ def get_data_order(path_file):
                     HYPHEN = 4;
                     LINE_BREAK = 5;
                     """
-                    detected_break=symbol.property.detected_break.type
-                    if detected_break in [3, 4,5]:
+                    detected_break = symbol.property.detected_break.type
+                    if detected_break in [3, 4, 5]:
                         word_symbols.append(u"\n")
-                        symbol_data["detected_break"]=detected_break
+                        symbol_data["detected_break"] = detected_break
                     symbols_data.append(symbol_data)
+                word_text = u''.join(word_symbols)
                 data_words.append({
                     "symbols": symbols_data,
-                    "vertices": get_vertices(word.bounding_box.vertices)
+                    "vertices": get_vertices(word.bounding_box.vertices),
+                    "word": word_text,
+                    "detected_break": detected_break
                 })
-                word_text = u''.join(word_symbols)
                 try:
                     total_text.append(word_text)
                 except Exception as e:
@@ -88,12 +93,12 @@ def get_data_order(path_file):
             data_paragraphs.append({
                 "words": data_words,
                 "vertices": get_vertices(paragraph.bounding_box.vertices)
-                })
+            })
         vertices = get_vertices(block.bounding_box.vertices)
         blocks.append(
             {
                 "block": {
-                    "paragraphs" :data_paragraphs,
+                    "paragraphs": data_paragraphs,
                     "vertices": vertices
                 },
                 "total_text": total_text,
@@ -104,6 +109,21 @@ def get_data_order(path_file):
             })
     blocks.sort(key=block_fx)
     return blocks
+
+
+def get_words_list(data_order):
+    words_list = []
+    for block in data_order:
+        paragraphs = block.get("block", {}).get("paragraphs", [])
+        for paragraph in paragraphs:
+            words = paragraph.get("words", [])
+            for word in words:
+                words_list.append({
+                    "vertices": word.get("vertices"),
+                    "word": word.get("word"),
+                    "detected_break": word.get("detected_break"),
+                })
+    return words_list
 
 
 def greater_to_left_column(ordern_blocks, var_px=40, rectification=True):
@@ -189,12 +209,12 @@ def get_year_data(mypath, pp_year=2018, th=False, print_test=True):
     from os import listdir
     from os.path import isfile, join
     import re
-    #Ajustes que no estoy seguro que funcionen:
+    # Ajustes que no estoy seguro que funcionen:
     all_pdf_files = []
     for page in [1, 2]:
-        base_path = "%s%s\\"%(mypath, page)
+        base_path = "%s%s\\" % (mypath, page)
         for f in listdir(base_path):
-            full_file_path = "%s%s"%(base_path, f)
+            full_file_path = "%s%s" % (base_path, f)
             if isfile(full_file_path) and (".png" in f and "PP-" in f):
                 all_pdf_files.append([f, full_file_path])
     try:
@@ -202,7 +222,7 @@ def get_year_data(mypath, pp_year=2018, th=False, print_test=True):
     except Exception as e:
         raise e
         return
-    scraping_simple={}
+    scraping_simple = {}
     re_vars = re.compile(r'^.*\\p([1-2])\\PP-(\d{4})-(\w{2,3})_(\d{4}).png$')
     for file in all_pdf_files:
         if re_vars.match(file[1]):
@@ -210,17 +230,17 @@ def get_year_data(mypath, pp_year=2018, th=False, print_test=True):
         else:
             continue
         sub_image, year, short_name, image_name = all_vars.split("-")
-        if year!=u"%s"%pp_year:
+        if year != u"%s" % pp_year:
             continue
         if th and th != short_name:
-            #Se especificó una alcaldía en específico
+            # Se especificó una alcaldía en específico
             continue
-        townhall=TownHall.objects.filter(short_name=short_name).first()
+        townhall = TownHall.objects.filter(short_name=short_name).first()
         if not townhall:
-            print u"townhall no identificado con el short_name: %s"%short_name
+            print u"townhall no identificado con el short_name: %s" % short_name
             continue
         print townhall
-        
+
         vision_data = get_data_order(file[1])
         # copia para mandar y guardar en algun otro momento
         # vision_data_copy=list(vision_data)
@@ -228,14 +248,14 @@ def get_year_data(mypath, pp_year=2018, th=False, print_test=True):
         while vision_data:
             columns = greater_to_left_column(vision_data, var_px=20)
             data_in_columns.append(columns)
-        normalize_data_=normalize_data(data_in_columns)
+        normalize_data_ = normalize_data(data_in_columns)
         if not townhall.short_name in scraping_simple:
-            scraping_simple[townhall.short_name]={
+            scraping_simple[townhall.short_name] = {
                 "townhall": townhall,
                 "period": periodpp
             }
-        townhall_scraping_data={
-            "images":{
+        townhall_scraping_data = {
+            "images": {
                 image_name: {
                     sub_image: {
                         "data": normalize_data_,
@@ -244,74 +264,124 @@ def get_year_data(mypath, pp_year=2018, th=False, print_test=True):
                 }
             }
         }
-        scraping_simple[townhall.short_name]=update(
+        scraping_simple[townhall.short_name] = update(
             scraping_simple[townhall.short_name], townhall_scraping_data)
     return scraping_simple
+
+
+def get_year_data_v2(mypath, pp_year=2018, th=False):
+    from project.models import FinalProject
+    from geographic.models import (TownHall, Suburb)
+    from public_account.models import(PublicAccount, PPImage)
+    from period.models import PeriodPP
+    from os import listdir
+    from os.path import isfile, join
+    import re
+    import json
+    all_pdf_files = []
+    for f in listdir(mypath):
+        full_file_path = "%s%s" % (mypath, f)
+        if isfile(full_file_path) and ("0001.png" in f and "PP-" in f):
+            all_pdf_files.append([f, full_file_path])
+    print len(all_pdf_files)
+    try:
+        period_pp = PeriodPP.objects.get(year=pp_year)
+    except Exception as e:
+        raise e
+        return
+    scraping_simple = {}
+    re_vars = re.compile(r'^.*\\PP-(\d{4})-(\w{2,3})_(\d{4}).png$')
+    for file in all_pdf_files:
+        if re_vars.match(file[1]):
+            all_vars = re.sub(re_vars, '\\1-\\2-\\3', file[1])
+        else:
+            continue
+        year, short_name, image_name = all_vars.split("-")
+        if year != u"%s" % pp_year:
+            continue
+        if th and th != short_name:
+            # Se especificó una alcaldía en específico
+            continue
+        townhall = TownHall.objects.filter(short_name=short_name).first()
+        if not townhall:
+            print u"townhall no identificado con el short_name: %s" % short_name
+            continue
+        public_account, is_created = PublicAccount.objects.get_or_create(
+            townhall=townhall,
+            period_pp=period_pp)
+        ppimage, is_created = PPImage.objects.get_or_create(
+            public_account=public_account, path=file[0])
+        try:
+            variables = json.loads(ppimage.vision_data)
+        except Exception as e:
+            variables = {}
+        vision_data = get_data_order(file[1])
+        variables["full"] = vision_data
+        ppimage.vision_data = json.dumps(variables)
+        ppimage.save()
 
 
 def extractDataForLens(path_image, year=2018, th=False):
     from public_account.models import PublicAccount, PPImage
     import json
     data_from_lens = get_year_data(path_image, pp_year=year, th=th)
-    #pages = dict.items(data_from_lens)
+    # pages = dict.items(data_from_lens)
     for th_sn, th_data in data_from_lens.items():
         import json
-        townhall=th_data.get("townhall")
-        periodpp=th_data.get("period")
-        images_scraping=th_data.get("images")
-        public_account, is_created=PublicAccount.objects.get_or_create(
+        townhall = th_data.get("townhall")
+        periodpp = th_data.get("period")
+        images_scraping = th_data.get("images")
+        public_account, is_created = PublicAccount.objects.get_or_create(
             townhall=townhall, period_pp=periodpp)
 
-        public_account.variables=json.dumps(images_scraping)
+        public_account.variables = json.dumps(images_scraping)
         public_account.save()
 
         for image_name, image_data in images_scraping.items():
-            file=None
+            file = None
             for sub_image, sub_image_data in image_data.items():
-                file=sub_image_data.get("file")
+                file = sub_image_data.get("file")
                 if file:
                     break
-            pp_image, is_created=PPImage.objects.get_or_create(
+            pp_image, is_created = PPImage.objects.get_or_create(
                 public_account=public_account,
                 path=file
-                )
-            pp_image.json_variables=json.dumps(image_data)
+            )
+            pp_image.json_variables = json.dumps(image_data)
             pp_image.save()
 
 
 def proces_scraping_simple(scraping_simple):
     for townhall_id, townhall_scraping_data in scraping_simple.items():
-        images=townhall_scraping_data.get("images")
-        townhall=townhall_scraping_data.get("townhall")
-        period=townhall_scraping_data.get("period")
+        images = townhall_scraping_data.get("images")
+        townhall = townhall_scraping_data.get("townhall")
+        period = townhall_scraping_data.get("period")
         for image in images:
-            image_a=images[image].get("1")
-            image_b=images[image].get("2")
+            image_a = images[image].get("1")
+            image_b = images[image].get("2")
             if not (image_b and image_b):
                 return
             """
             limite de los valores
             """
-            irregular=False
-            data_b=image_b.get("data")
-            if len(data_b)==5:
-                #informacion regular esperada
-                total_datos_esperados=len(data_b[0])
+            irregular = False
+            data_b = image_b.get("data")
+            if len(data_b) == 5:
+                # informacion regular esperada
+                total_datos_esperados = len(data_b[0])
                 for colum_b in data_b:
-                    if len(colum_b)!=total_datos_esperados:
-                        irregular="no todas las columnas tienen el mismo tamaño"
+                    if len(colum_b) != total_datos_esperados:
+                        irregular = "no todas las columnas tienen el mismo tamaño"
                         break
             else:
-                irregular="informaion irregular, se esperavan 5 columnas para este dato"
+                irregular = "informaion irregular, se esperavan 5 columnas para este dato"
             if irregular:
                 print "------------------------------------------------------"
                 print "informaion irregular, se esperavan 5 columnas para este dato"
                 print data_b
                 print
-                total_datos_esperados=0
+                total_datos_esperados = 0
                 continue
-
-
 
 
 def normalize_data(data):

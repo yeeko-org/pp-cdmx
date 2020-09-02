@@ -6,8 +6,10 @@ from geographic.models import TownHall, Suburb
 from period.models import PeriodPP
 from pprint import pprint
 from scripts.data_cleaner import set_new_error
+import json
 
-amm_types= ["progress", "approved", "modified", "executed", "variation"]
+amm_types = ["progress", "approved", "modified", "executed", "variation"]
+
 
 class PublicAccount(models.Model):
     # original_pdf = models.FileField(
@@ -96,7 +98,6 @@ class PublicAccount(models.Model):
                                 set_new_error(image, 
                                     "Forzamos el formato correcto a %s"%ammount)"""
 
-
                         try:
                             complete_row[ammount] = number_results[idx_amm][idx]
                         except Exception as e:
@@ -141,7 +142,6 @@ class PublicAccount(models.Model):
                 new_orphan_rows = formatter_orphan(all_images, all_orphan_rows)
                 len_new_orphan = len(new_orphan_rows)
 
-
             missings_subs = Suburb.objects.filter(
                 townhall=self.townhall,
                 finalproject__period_pp=self.period_pp,
@@ -149,7 +149,6 @@ class PublicAccount(models.Model):
 
             incomp_images = PPImage.objects.filter(public_account=self)\
                                             .exclude(status='completed')
-
 
             self.status = "incompleted" if incomp_images.count() else 'completed'
 
@@ -172,17 +171,293 @@ class PPImage(models.Model):
     public_account = models.ForeignKey(PublicAccount)
     path = models.CharField(max_length=255)
     json_variables = models.TextField(blank=True, null=True)
+    vision_data = models.TextField(blank=True, null=True)
     clean_data = models.TextField(blank=True, null=True)
-    error_cell = models.TextField(blank=True, null=True, 
-        verbose_name="pila de errores")
-    len_array_numbers = models.CharField(max_length=80, 
-        blank=True, null=True)
-    data_row_numbers=models.TextField(blank=True, null=True, 
-        verbose_name=u"Datos de columnas numéricas")
-    data_row_suburbs=models.TextField(blank=True, null=True,
-        verbose_name=u"Datos de columna de suburbs")
+    error_cell = models.TextField(
+        blank=True, null=True, verbose_name="pila de errores")
+    len_array_numbers = models.CharField(
+        max_length=80, blank=True, null=True)
+    data_row_numbers = models.TextField(
+        blank=True, null=True, verbose_name=u"Datos de columnas numéricas")
+    data_row_suburbs = models.TextField(
+        blank=True, null=True, verbose_name=u"Datos de columna de suburbs")
     status = models.CharField(
         blank=True, null=True, max_length=80, default=u"uncleaned")
+
+    def first_block_by_text(self, text, full=False):
+        vision_data = self.get_vision_data().get("full", {})
+        first_opcion = False
+        for block in vision_data:
+            complete_w = block.get("w", "")
+            if text.lower() in complete_w.lower():
+                print block.get("w")
+                if full:
+                    return block
+                else:
+                    return {
+                        "vertices": block.get("vertices"),
+                        "w": block.get("w"),
+                    }
+
+    def find_block_logo(self):
+        vision_data = self.get_vision_data().get("full", {})
+        first_opcion = False
+        for block in vision_data:
+            complete_w = block.get("w", "")
+            if u"CIUDAD DE MÉXICO" == complete_w.strip():
+                print "bloque exacto"
+                print complete_w
+                first_opcion = block
+                break
+
+            elif u"CIUDAD DE MÉXICO" in complete_w:
+                if "GOBIERNO DE LA" in complete_w:
+                    print "se encontro con gobierno de la ciudad de mexico"
+                    print complete_w
+                    first_opcion = block
+                    break
+
+            elif u"CIUDAD DE MEXICO" in complete_w:
+                print "se encontro sin acento"
+                print complete_w
+                if u"CUENAT PUBLICA" in complete_w:
+                    continue
+                if not first_opcion:
+                    first_opcion = block
+        if first_opcion:
+            logo_left = first_opcion.get("vertices")[0].get("x")
+            logo_bottom = first_opcion.get("vertices")[3].get("y")
+            data = self.get_json_variables()
+            #data["logo"] = first_opcion
+            data["logo_left"] = logo_left
+            data["logo_bottom"] = logo_bottom
+            self.json_variables = json.dumps(data)
+            self.save()
+        else:
+            print u"no se encontro el left_data"
+
+    def find_block_unidad(self):
+        block_unidad = self.first_block_by_text(
+            "unidad responsable del gasto")
+        if not block_unidad:
+            # considerar otras medidas como variantes
+            return
+        data = self.get_json_variables()
+        #data["block_unidad"] = block_unidad
+        data["left_data"] = block_unidad.get("vertices")[0].get("x")
+        self.json_variables = json.dumps(data)
+        self.save()
+
+    def find_block_title(self):
+        block_title = self.first_block_by_text(
+            "ciudad de mexico %s" % (self.public_account.period_pp.year))
+        if not block_title:
+            # considerar otras medidas como variantes
+            return
+        data = self.get_json_variables()
+        #data["block_title"] = block_title
+        data["title_rigth"] = block_title.get("vertices")[1].get("x")
+        self.json_variables = json.dumps(data)
+        self.save()
+
+    def find_headers(self):
+        colina = self.first_block_by_text(u"colonia o pueblo")
+        proyecto = self.first_block_by_text(u"proyecto")
+        descripcion = self.first_block_by_text(u"descripción")
+        avance = self.first_block_by_text(u"avance del")
+        aprobado = self.first_block_by_text(u"aprobado")
+        modificado = self.first_block_by_text(u"modificado")
+        ejercido = self.first_block_by_text(u"ejercido")
+        variacion = self.first_block_by_text(u"variación")
+
+        data = self.get_json_variables()
+        data["columns_heades"] = [
+            colina,
+            proyecto,
+            descripcion,
+            avance,
+            aprobado,
+            modificado,
+            ejercido,
+            variacion,
+        ]
+
+        # {
+        #     "colina": colina,
+        #     "proyecto": proyecto,
+        #     "descripcion": descripcion,
+        #     "avance": avance,
+        #     "aprobado": aprobado,
+        #     "modificado": modificado,
+        #     "ejercido": ejercido,
+        #     "variacion": variacion,
+        # }
+
+        self.json_variables = json.dumps(data)
+        self.save()
+
+    def calculate_column_boxs(self):
+        columns_heades = self.get_json_variables().get("columns_heades", [])
+        left_data = self.get_json_variables().get("left_data")
+        top_columns = 0
+        if not left_data:
+            print "No se tiene calculado el left_data"
+            return
+        elif not isinstance(columns_heades, list):
+            print "se esperava que columns_heades fuese lista"
+            return
+        elif not len(columns_heades) == 8:
+            print u"se esperava una lista de 8 elementos"
+            print u"actualemnte tiene: %s" % len(columns_heades)
+            return
+        elif not all(columns_heades):
+            print "el find_headers no encontro todas las cabezeras"
+            return
+        columns_boxs = []
+
+        for header in columns_heades:
+
+            vertices = header.get("vertices")
+            center = (vertices[0].get("x") + vertices[1].get("x")) / 2
+            # center=(vertices[0].get("x") + vertices[1].get("x")
+            #     + vertices[2].get("x") + vertices[3].get("x"))/4
+
+            radio = center - left_data
+            right_data = center + radio
+
+            columns_boxs.append({
+                "left": left_data,
+                "center": center,
+                "right": right_data
+            })
+
+            left_data = right_data
+
+            header_bot = vertices[2].get("y")
+            if header_bot > top_columns:
+                top_columns = header_bot
+
+        data = self.get_json_variables()
+        data["columns_boxs"] = columns_boxs
+        data["top_columns"] = top_columns
+        self.json_variables = json.dumps(data)
+        self.save()
+
+    def calculate_bot_columns(self):
+        # alto maximo del archivo entre 1700 y 1750
+        bot_columns = 1750
+
+        # busqueda del bloque de firmas
+
+        # busqueda de la palabra total
+
+        data = self.get_json_variables()
+        data["bot_columns"] = bot_columns
+        self.json_variables = json.dumps(data)
+        self.save()
+
+    def get_data_from_columns(self):
+
+        data = self.get_json_variables()
+        bot_columns = data.get("bot_columns")
+        top_columns = data.get("top_columns")
+        columns_boxs = data.get("columns_boxs")
+        columns_data=[]
+
+        for column_box in columns_boxs:
+            left = column_box.get("left")
+            right = column_box.get("right")
+            data_in_block=self.get_blocks_in_box(
+                left, right, top_columns, bot_columns)
+            columns_data.append(
+                [
+                {
+                    "w": line.get("w"),
+                    "vertices": line.get("vertices")
+                }
+                for line in data_in_block]
+            )
+        data["columns_data"] = columns_data
+        self.json_variables = json.dumps(data)
+        self.save()
+
+
+    def get_blocks_in_box(self, left, right, top, bot):
+        print "--------------------------"
+        print left
+        print right
+        print top
+        print bot
+        print "--------------------------"
+        vision_data = self.get_vision_data().get("full", {})
+        first_opcion = False
+        data = []
+        for block in vision_data:
+            vertices = block.get("vertices")
+            y_top = vertices[0].get("y")
+            y_bot = vertices[3].get("y")
+
+            if not (y_top >= top and y_bot <= bot):
+                # fuera de los limites alto y bajo
+                continue
+
+            x_left = vertices[0].get("x")
+            x_right = vertices[1].get("x")
+
+            if x_left >= left and x_right <= right:
+                # bloques completos dentro de los limites
+
+                # separar los bloques en lineas  conservando su posicion y
+                lines = get_lines_in_block(block)
+                data += lines
+                pass
+            elif (x_left >= left and x_left <= right) or (x_right >= left and x_right <= right):
+                # Solo una parte del bloque esta en los limites
+                """
+                separarlos en lineas, y por palabras revisar quienes entran
+                en el limite, las palabras recortadas deven ofrecer un ajuste
+                en los limites dependiendo si porcentaje recortado es menor
+                al porcentaje dentro de los limites
+                """
+                lines = get_lines_in_block(block)
+                lines_content=[]
+                for line in lines:
+                    line_content=content_in_limits(line, left, right)
+                    if line_content:
+                        lines_content.append(line_content)
+                data += lines_content
+                pass
+            elif left >= x_left and right <= x_right:
+                # el bloque atravieza por completo los limites
+                """
+                mismas acciones que el caso de arriba, solo una porcion
+                centrica del bloque es valida
+                """
+                lines = get_lines_in_block(block)
+                lines_content=[]
+                for line in lines:
+                    line_content=content_in_limits(line, left, right)
+                    if line_content:
+                        lines_content.append(line_content)
+                data += lines_content
+                pass
+
+        # reordenamiento de las filas por odern decendente en y
+        def block_fy(e):
+            return e['fy']
+        data.sort(key=block_fy)
+        # for block in data:
+        #     print block.get("w")
+        return data
+
+    def get_vision_data(self):
+        import json
+        try:
+            return json.loads(self.vision_data)
+        except Exception as e:
+            print e
+            return {}
+
     def get_json_variables(self):
         import json
         try:
@@ -242,7 +517,6 @@ class PPImage(models.Model):
                 self.status = "inestable_suburbs"
                 self.save()
         return all_orphan_rows
-
 
     def last_comprob_missings(self, ord_numbers, ord_suburbs):
         from scripts.data_cleaner import saveFinalProjSuburb
@@ -336,7 +610,6 @@ class PPImage(models.Model):
             self.status = "stable_row"
             set_new_error(self, "Hay cosas que faltan por completar")
 
-        
         self.save()
 
         #pprint(orphan_rows)
@@ -344,7 +617,6 @@ class PPImage(models.Model):
 
     def __unicode__(self):
         return u"%s %s"%(self.public_account, self.path)
-
 
     def set_values_final_proj(self, final_proj, sub_row):
         import json
@@ -365,12 +637,14 @@ class PPImage(models.Model):
             final_proj.image=self 
         final_proj.save()
 
+
 def append_comprob(comprobs, row, name):
     try:
         comprobs.append({"value": row[name], "name": name})
     except Exception as e:
         pass
     return comprobs
+
 
 def similar_content(sub_name, row):
     from difflib import SequenceMatcher
@@ -390,6 +664,7 @@ def similar_content(sub_name, row):
             may_name = comp["name"]
 
     return may_name, max_value
+
 
 def formatter_orphan(all_images, all_orphan_rows):
     new_orphan_rows = {"suburbs":[], "numbers":[]}
@@ -480,3 +755,88 @@ def set_values_combs(orphan_subs, sel_row, image, may_type):
             print e
     return orphan_subs
 
+
+def get_lines_in_block(block):
+    lines=[]
+    line=[]
+    for paragraph in block.get("block", {}).get("paragraphs", []):
+        for word in paragraph.get("words", []):
+            vertices=word.get("vertices")
+            line.append(word)
+            detected_break=word.get("detected_break")
+            if detected_break in [3, 4, 5]:
+                full_line=u" ".join([w.get("word") for w in line])
+                """
+                se espera que sea una sola linea, por lo que sus vertices
+                deverian ser  los 0 y 3 del primer bloque y 1 y2 del
+                ultimo  bloque
+                """
+                first_vertices=line[0].get("vertices")
+                final_vertices=[
+                    first_vertices[0],
+                    vertices[1],
+                    vertices[2],
+                    first_vertices[3],
+                ]
+                lines.append({
+                    "w": full_line,
+                    "fy": final_vertices[0].get("y", 0),
+                    "words": line,
+                    "detected_break": detected_break,
+                    "vertices": final_vertices
+                })
+                line=[]
+    return lines
+
+def content_in_limits(line, left, right):
+    line_content=[]
+    if not line:
+        return False
+    for word in line.get("words"):
+        vertices = word.get("vertices")
+        x_left = vertices[0].get("x")
+        x_right = vertices[1].get("x")
+
+        if x_left >= left and x_right <= right:
+            # palabra completos dentro de los limites
+            line_content.append(word)
+            continue
+
+        full=x_right-x_left
+        if (x_left >= left and x_left <= right):
+            #porcion izquierda
+            fraccion=right-x_left
+        elif(x_right >= left and x_right <= right):
+            #porcion derecha
+            fraccion=x_right-left
+        elif left >= x_left and right <= x_right:
+            # la palabra atravieza los limites, se deve contemplar?
+            line_content.append(word)
+            continue
+        else:
+            continue
+        porcentage=(fraccion*100)/full
+        if porcentage>70:
+            line_content.append(word)
+
+    if line_content:
+        full_line=u" ".join([w.get("word") for w in line_content])
+        #usar el detected_break de contenido o de la linea original?
+        detected_break=line.get("words")[-1].get("detected_break")
+        first_vertices=line_content[0].get("vertices")
+        last_vertices=line_content[-1].get("vertices")
+        final_vertices=[
+            first_vertices[0],
+            last_vertices[1],
+            last_vertices[2],
+            first_vertices[3],
+        ]
+        return {
+            "w": full_line,
+            "fy": final_vertices[0].get("y", 0),
+            "words": line_content,
+            "detected_break": detected_break,
+            "vertices": final_vertices
+        }
+    else:
+        return False
