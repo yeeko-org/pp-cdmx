@@ -4,9 +4,9 @@ from scripts.exercises  import *
 extract_only_pages("AO", '0002')
 
 
-
+#ejecutar una alcadías con reset en True
 from scripts.exercises  import *
-execute_townhall('AZC', False, True)
+execute_townhall('BJ', False, True)
 
 lst =[10,10,9,9,8]
 max(set(lst), key=lst.count)
@@ -16,14 +16,17 @@ max(set(lst), key=lst.count)
 all_ths = ["CUH", "CUJ", "TLP", "VC", "XO", "AO", "IZT", "AZC", "TLH", "MC", "MH", "COY", "GAM", "BJ", "MIL", "IZP"]
 
 
+#ejecutar todas las alcadías con reset en True
+execute_all_townhalls(True)
+
 #execute_townhall(all_ths[3])
 
 from scripts.exercises  import *
 print_all_results()
 
 
-
-lens_th('CUJ')
+#Pasar los datos por Google Lens de nueva cuenta.
+lens_th('BJ')
 
 lens_th('IZP')
 

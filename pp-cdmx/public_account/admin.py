@@ -14,8 +14,7 @@ class PPImageInline(admin.StackedInline):
 
 class PublicAccountAdmin(admin.ModelAdmin):
     model = PublicAccount
-    list_display = [
-        "townhall", "period_pp"]
+    list_display = ["townhall", "period_pp", "error_cell", "status"]
     inlines = [PPImageInline]
 admin.site.register(PublicAccount, PublicAccountAdmin)
 
@@ -60,7 +59,8 @@ class FinalProjectInline(admin.StackedInline):
 
 class PPImageAdmin(admin.ModelAdmin):
     model = PPImage
-    list_display = ["public_account", "path", "status"]
+    list_display = ["public_account", "path", "status", "len_array_numbers",
+                    "error_cell"]
     list_filter = [
         "public_account__townhall",
         "public_account__period_pp__year"]
