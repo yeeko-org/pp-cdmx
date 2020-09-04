@@ -72,9 +72,14 @@ class PublicAccount(models.Model):
                 .filter(suburb__townhall=self.townhall,
                         period_pp=self.period_pp,
                         image__in=all_images)\
-                .update(image=None, similar_suburb_name=None)
-            PPImage.objects.filter(public_account=self).update(error_cell=None)
+                .update(image=None, similar_suburb_name=None, error_cell="", 
+                        inserted_data=False, approved=None, modified=None, 
+                        executed=None, progress=None, variation=None)
+            PPImage.objects.filter(public_account=self).update(status=None,
+                error_cell=None, len_array_numbers=None,
+                data_row_numbers=None, data_row_suburbs=None)
             self.error_cell = ""
+            self.status = None
             self.save()
         for image in all_images:
             print image.path

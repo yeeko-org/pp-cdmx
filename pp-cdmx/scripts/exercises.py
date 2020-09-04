@@ -16,22 +16,23 @@ def execute_townhall(th , need_lens=False, reset_images=False):
     public_account.column_formatter(need_lens or reset_images)
     print print_results(th)
 
-def print_results(th):
+def print_results(th=None):
     from project.models import FinalProject
     print "*********************"
-    print th
-    won = FinalProject.objects.filter(inserted_data=True, 
-        suburb__townhall__short_name=th).count()
-    no_won = FinalProject.objects.filter(inserted_data=False,
-        suburb__townhall__short_name=th).count()
-    won_sub = FinalProject.objects.filter(image__isnull=False, 
-        suburb__townhall__short_name=th).count()
-    no_won_sub = FinalProject.objects.filter(image__isnull=True,
-        suburb__townhall__short_name=th).count()
-    print "%s  --> logrados"%won
-    print "%s  --> no logrados:"%no_won
-    print "%s  --> con suburb"%won_sub
-    print "%s  --> sin suburb:"%no_won_sub
+    print th or 'RESULTADOS GLOBALES'
+    won = FinalProject.objects.filter(inserted_data=True) 
+    no_won = FinalProject.objects.filter(inserted_data=False)
+    won_sub = FinalProject.objects.filter(image__isnull=False) 
+    no_won_sub = FinalProject.objects.filter(image__isnull=True)
+    if th:
+        won.filter(suburb__townhall__short_name=th)
+        no_won.filter(suburb__townhall__short_name=th)
+        won_sub.filter(suburb__townhall__short_name=th)
+        no_won_sub.filter(suburb__townhall__short_name=th)
+    print "%s  --> logrados"%won.count()
+    print "%s  --> no logrados"%no_won.count()
+    print "%s  --> con suburb"%won_sub.count()
+    print "%s  --> sin suburb"%no_won_sub.count()
 
 
 def execute_all_townhalls(reset_images=False):
@@ -44,13 +45,7 @@ def print_all_results():
     from geographic.models import TownHall
     for th in TownHall.objects.all():
         print_results(th.short_name)
-    print "*********************"
-    print "RESULTADOS GLOBALES"
-    print "logrados:"
-    print FinalProject.objects.filter(inserted_data=True).count()
-    print "no logrados:"
-    print FinalProject.objects.filter(inserted_data=False).count()
-
+    print_results()
 
 def lens_th(th):
     execute_townhall(th, True, True)
