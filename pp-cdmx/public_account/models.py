@@ -204,20 +204,81 @@ class PPImage(models.Model):
     status = models.CharField(
         blank=True, null=True, max_length=80, default=u"uncleaned")
 
-    def first_block_by_text(self, text, full=False):
+    def get_data_full_image(self):
+        self.find_block_logo()
+        self.find_block_unidad()
+        self.find_block_title()
+        self.find_headers()
+        self.calculate_column_boxs()
+        self.calculate_bot_columns()
+        self.get_data_from_columns()
+
+
+
+    def first_block_by_text(self, text, full_obj=False, lines=False):
+        from scripts.data_cleaner import similar
         vision_data = self.get_vision_data().get("full", {})
         first_opcion = False
+        opcion=[]
         for block in vision_data:
             complete_w = block.get("w", "")
-            if text.lower() in complete_w.lower():
-                print block.get("w")
-                if full:
-                    return block
-                else:
-                    return {
-                        "vertices": block.get("vertices"),
-                        "w": block.get("w"),
+
+            if lines:
+                for line in complete_w.split("\n"):
+                    similar_value=similar(text.lower(), line.lower())
+                    if similar_value>0.5:
+                        opcion.append(
+                            {
+                                "block": block,
+                                "similar_value": similar_value
+                            }
+                        )
+
+            else:
+                similar_value=similar(text.lower(), complete_w.lower())
+            if similar_value>0.5:
+                opcion.append(
+                    {
+                        "block": block,
+                        "similar_value": similar_value
                     }
+                )
+            # if text.lower() in complete_w.lower():
+            #     print block.get("w")
+            #     if full:
+            #         return block
+            #     else:
+            #         return {
+            #             "vertices": block.get("vertices"),
+            #             "w": block.get("w"),
+            #         }
+
+        if not opcion:
+            return False
+        def block_value(e):
+            return e['similar_value']
+        opcion.sort(key=block_value)
+
+        for o in opcion:
+            w=o.get("block").get("w")
+            value=o.get("similar_value")
+            print w
+            print value
+            print
+
+        best_opcion=opcion[-1]
+        block=best_opcion.get("block")
+        similar_value=best_opcion.get("similar_value")
+        if full_obj:
+            block["similar_value"]=similar_value
+            return block
+        else:
+            return {
+                "vertices": block.get("vertices"),
+                "w": block.get("w"),
+                "similar_value": similar_value
+            }
+
 
     def find_block_logo(self):
         vision_data = self.get_vision_data().get("full", {})
@@ -254,7 +315,7 @@ class PPImage(models.Model):
             self.json_variables = json.dumps(data)
             self.save()
         else:
-            print u"no se encontro el left_data"
+            print u"no se encontro el data_left"
 
     def find_block_unidad(self):
         block_unidad = self.first_block_by_text(
@@ -264,13 +325,13 @@ class PPImage(models.Model):
             return
         data = self.get_json_variables()
         #data["block_unidad"] = block_unidad
-        data["left_data"] = block_unidad.get("vertices")[0].get("x")
+        data["data_left"] = block_unidad.get("vertices")[0].get("x")
         self.json_variables = json.dumps(data)
         self.save()
 
     def find_block_title(self):
         block_title = self.first_block_by_text(
-            "ciudad de mexico %s" % (self.public_account.period_pp.year))
+            "cuenta publica de la ciudad de mexico %s" % (self.public_account.period_pp.year))
         if not block_title:
             # considerar otras medidas como variantes
             return
@@ -281,10 +342,10 @@ class PPImage(models.Model):
         self.save()
 
     def find_headers(self):
-        colina = self.first_block_by_text(u"colonia o pueblo")
+        colina = self.first_block_by_text(u"colonia o pueblo originario")
         proyecto = self.first_block_by_text(u"proyecto")
         descripcion = self.first_block_by_text(u"descripción")
-        avance = self.first_block_by_text(u"avance del")
+        avance = self.first_block_by_text(u"avance del proyecto")
         aprobado = self.first_block_by_text(u"aprobado")
         modificado = self.first_block_by_text(u"modificado")
         ejercido = self.first_block_by_text(u"ejercido")
@@ -318,10 +379,10 @@ class PPImage(models.Model):
 
     def calculate_column_boxs(self):
         columns_heades = self.get_json_variables().get("columns_heades", [])
-        left_data = self.get_json_variables().get("left_data")
-        top_columns = 0
-        if not left_data:
-            print "No se tiene calculado el left_data"
+        data_left = self.get_json_variables().get("data_left")
+        columns_top = 0
+        if not data_left:
+            print "No se tiene calculado el data_left"
             return
         elif not isinstance(columns_heades, list):
             print "se esperava que columns_heades fuese lista"
@@ -342,24 +403,24 @@ class PPImage(models.Model):
             # center=(vertices[0].get("x") + vertices[1].get("x")
             #     + vertices[2].get("x") + vertices[3].get("x"))/4
 
-            radio = center - left_data
+            radio = center - data_left
             right_data = center + radio
 
             columns_boxs.append({
-                "left": left_data,
+                "left": data_left,
                 "center": center,
                 "right": right_data
             })
 
-            left_data = right_data
+            data_left = right_data
 
             header_bot = vertices[2].get("y")
-            if header_bot > top_columns:
-                top_columns = header_bot
+            if header_bot > columns_top:
+                columns_top = header_bot
 
         data = self.get_json_variables()
         data["columns_boxs"] = columns_boxs
-        data["top_columns"] = top_columns
+        data["columns_top"] = columns_top
         self.json_variables = json.dumps(data)
         self.save()
 
@@ -368,8 +429,36 @@ class PPImage(models.Model):
         bot_columns = 1750
 
         # busqueda del bloque de firmas
+        block_elaboro = self.first_block_by_text("Elaboro :", lines=True)
+        if block_elaboro:
+            vertices=block_elaboro.get("vertices")
+            if bot_columns>vertices[0].get("y"):
+                bot_columns=vertices[0].get("y")
+
+        block_autorizo = self.first_block_by_text("Autorizo :", lines=True)
+        if block_autorizo:
+            vertices=block_autorizo.get("vertices")
+            if bot_columns>vertices[0].get("y"):
+                bot_columns=vertices[0].get("y")
 
         # busqueda de la palabra total
+        block_total_urg = self.first_block_by_text("total urg")
+        if block_total_urg:
+            vertices=block_total_urg.get("vertices")
+            if bot_columns>vertices[0].get("y"):
+                bot_columns=vertices[0].get("y")
+
+        block_total = self.first_block_by_text("total")
+        if block_total:
+            similar_value=block_total.get("similar_value")
+            if similar_value>0.8:
+                vertices=block_total.get("vertices")
+                if bot_columns>vertices[0].get("y"):
+                    bot_columns=vertices[0].get("y")
+
+        print 
+        print bot_columns
+        print
 
         data = self.get_json_variables()
         data["bot_columns"] = bot_columns
@@ -380,7 +469,7 @@ class PPImage(models.Model):
 
         data = self.get_json_variables()
         bot_columns = data.get("bot_columns")
-        top_columns = data.get("top_columns")
+        columns_top = data.get("columns_top")
         columns_boxs = data.get("columns_boxs")
         columns_data=[]
 
@@ -388,7 +477,7 @@ class PPImage(models.Model):
             left = column_box.get("left")
             right = column_box.get("right")
             data_in_block=self.get_blocks_in_box(
-                left, right, top_columns, bot_columns)
+                left, right, columns_top, bot_columns)
             columns_data.append(
                 [
                 {
