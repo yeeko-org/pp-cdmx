@@ -25,10 +25,12 @@ class CatalogView(views.APIView):
     def get(self, request):
 
         categories_queryset = CategoryIECM.objects.all()
-        townhall_queryset = TownHall.objects.all()
+        townhall_queryset = TownHall.objects.all()#\
+            #.annotate(geo_point = F('townhallgeodata__geo_point'))
         suburb_type_queryset = SuburbType.objects.all()
         suburb_queryset = Suburb.objects.all()\
-            .order_by('townhall_id', 'suburb_type')
+            .order_by('townhall_id', 'suburb_type')\
+            .annotate(geo_point = F('suburbgeodata__geo_point'))
         data = {
             "categories": CategoryIECMSerializer(
                 categories_queryset, many=True).data,
@@ -36,9 +38,11 @@ class CatalogView(views.APIView):
                 townhall_queryset, many=True).data,
             "suburb_type": serializers.SuburbTypeSerializer(
                 suburb_type_queryset, many=True).data,
-            "suburb": Suburb.objects.all().values(
-                "id", "name", "suburb_type", "townhall", "pob_2010")
-            .annotate(geo_point = F('suburbgeodata__geo_point'))
+            "suburb": serializers.SuburbSerializer(
+                suburb_queryset, many=True).data
+            # "suburb": Suburb.objects.all().values(
+            #     "id", "name", "suburb_type", "townhall", "pob_2010")
+            # .annotate(geo_point = F('suburbgeodata__geo_point'))
         }
         return Response(data)
 

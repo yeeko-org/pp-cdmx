@@ -33,7 +33,7 @@ class SuburbTypeSerializer(serializers.ModelSerializer):
 
 
 class SuburbSerializer(serializers.ModelSerializer):
-    geo_point = serializers.ReadOnlyField(source="suburbgeodata.geo_point")
+    geo_point = serializers.ReadOnlyField()
 
     class Meta:
         model = Suburb
