@@ -31,21 +31,24 @@ class PublicAccount(models.Model):
     period_pp = models.ForeignKey(PeriodPP, verbose_name=u"Periodo PP")
     variables = models.TextField(blank=True, null=True)
     status = models.CharField(
-        blank=True, null=True, max_length=80, default=u"uncleaned")
-    error_cell = models.TextField(blank=True, null=True, 
+        max_length=80, default=u"uncleaned",
+        blank=True, null=True)
+    error_cell = models.TextField(
+        blank=True, null=True, 
         verbose_name="pila de errores")    
 
     approved = models.DecimalField(
         max_digits=12, decimal_places=2,
-        blank=True, null=True, verbose_name=u"Aprobado")
+        blank=True, null=True,
+        verbose_name=u"Aprobado")
     modified = models.DecimalField(
         max_digits=12, decimal_places=2,
-        blank=True,
-        null=True,
+        blank=True, null=True,
         verbose_name=u"Modificado")
     executed = models.DecimalField(
         max_digits=12, decimal_places=2,
-        blank=True, null=True, verbose_name=u"Ejecutado")
+        blank=True, null=True,
+        verbose_name=u"Ejecutado")
 
     vertical_align_ammounts = models.CharField(
         choices=VERTICAL_ALIGN_AMMOUNTS, max_length=50, blank=True, null=True)

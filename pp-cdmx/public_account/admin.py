@@ -14,8 +14,13 @@ class PPImageInline(admin.StackedInline):
 
 class PublicAccountAdmin(admin.ModelAdmin):
     model = PublicAccount
-    list_display = ["townhall", "period_pp", "error_cell", "status"]
+    list_display = [
+        "townhall", "period_pp", "status", "approved", "modified",
+        "executed", "vertical_align_ammounts"]
     inlines = [PPImageInline]
+    list_filter = ["townhall__name", "period_pp__year"]
+    list_editable = [
+        "approved", "modified", "executed", "vertical_align_ammounts"]
 admin.site.register(PublicAccount, PublicAccountAdmin)
 
 
