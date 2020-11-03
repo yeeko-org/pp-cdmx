@@ -213,53 +213,63 @@ class PPImage(models.Model):
         blank=True, null=True, max_length=80, default=u"uncleaned")
 
     def get_data_full_image(self):
-        self.find_block_logo()
-        self.find_block_unidad()
-        self.find_block_title()
-        self.find_headers()
+        self.find_reference_blocks()
         self.calculate_column_boxs()
-        self.calculate_bot_columns()
+        self.calculate_columns_bot()
         self.get_data_from_columns()
+        self.cleand_columns_numbers()
 
 
 
-    def first_block_by_text(self, text, full_obj=False, lines=False):
+    def find_block(self, text=False, regex=False, full_obj=False, lines=False):
         from scripts.data_cleaner import similar
+        import re
         vision_data = self.get_vision_data().get("full", {})
         first_opcion = False
         opcion=[]
         for block in vision_data:
             complete_w = block.get("w", "")
 
-            if lines:
-                for line in complete_w.split("\n"):
-                    similar_value=similar(text.lower(), line.lower())
-                    if similar_value>0.5:
-                        opcion.append(
-                            {
-                                "block": block,
-                                "similar_value": similar_value
-                            }
-                        )
+            if text:
+                if lines:
+                    for line in complete_w.split("\n"):
+                        similar_value=similar(text.lower(), line.lower())
+                        if similar_value>0.5:
+                            opcion.append(
+                                {
+                                    "block": block,
+                                    "similar_value": similar_value
+                                }
+                            )
 
-            else:
-                similar_value=similar(text.lower(), complete_w.lower())
-            if similar_value>0.5:
-                opcion.append(
-                    {
-                        "block": block,
-                        "similar_value": similar_value
-                    }
-                )
-            # if text.lower() in complete_w.lower():
-            #     print block.get("w")
-            #     if full:
-            #         return block
-            #     else:
-            #         return {
-            #             "vertices": block.get("vertices"),
-            #             "w": block.get("w"),
-            #         }
+                else:
+                    similar_value=similar(text.lower(), complete_w.lower())
+                if similar_value>0.5:
+                    opcion.append(
+                        {
+                            "block": block,
+                            "similar_value": similar_value
+                        }
+                    )
+                # if text.lower() in complete_w.lower():
+                #     print block.get("w")
+                #     if full:
+                #         return block
+                #     else:
+                #         return {
+                #             "vertices": block.get("vertices"),
+                #             "w": block.get("w"),
+                #         }
+
+            elif regex:
+                x = re.search(regex, complete_w)
+                if x:
+                    opcion.append(
+                        {
+                            "block": block,
+                            "similar_value": 1
+                        }
+                    )
 
         if not opcion:
             return False
@@ -286,6 +296,14 @@ class PPImage(models.Model):
                 "w": block.get("w"),
                 "similar_value": similar_value
             }
+
+    def find_reference_blocks(self):
+        self.find_block_logo()
+        self.find_block_unidad()
+        self.find_block_title()
+        self.find_block_ppd()
+        self.find_block_ammounts()
+        self.find_headers()
 
 
     def find_block_logo(self):
@@ -314,19 +332,19 @@ class PPImage(models.Model):
                 if not first_opcion:
                     first_opcion = block
         if first_opcion:
-            logo_left = first_opcion.get("vertices")[0].get("x")
-            logo_bottom = first_opcion.get("vertices")[3].get("y")
+            vertices = first_opcion.get("vertices")
             data = self.get_json_variables()
             #data["logo"] = first_opcion
-            data["logo_left"] = logo_left
-            data["logo_bottom"] = logo_bottom
+            
+            data["logo_left"] = vertices[0].get("x")
+            data["logo_bottom"] = vertices[3].get("y")
             self.json_variables = json.dumps(data)
             self.save()
         else:
             print u"no se encontro el data_left"
 
     def find_block_unidad(self):
-        block_unidad = self.first_block_by_text(
+        block_unidad = self.find_block(
             "unidad responsable del gasto")
         if not block_unidad:
             # considerar otras medidas como variantes
@@ -338,7 +356,7 @@ class PPImage(models.Model):
         self.save()
 
     def find_block_title(self):
-        block_title = self.first_block_by_text(
+        block_title = self.find_block(
             "cuenta publica de la ciudad de mexico %s" % (self.public_account.period_pp.year))
         if not block_title:
             # considerar otras medidas como variantes
@@ -349,15 +367,65 @@ class PPImage(models.Model):
         self.json_variables = json.dumps(data)
         self.save()
 
+    def find_block_ppd(self):
+        block_ppd = self.find_block(
+            "ppd presupuesto participativo para las delegaciones")
+        if not block_ppd:
+            # considerar otras medidas como variantes
+            return
+        data = self.get_json_variables()
+        #data["block_ppd"] = block_ppd
+
+        block_ppd_rigth = block_ppd.get("vertices")[1].get("x")
+        block_ppd_left = block_ppd.get("vertices")[0].get("x")
+        data["data_center"] = (block_ppd_rigth + block_ppd_left) / 2
+        self.json_variables = json.dumps(data)
+        self.save()
+
+    def find_block_ammounts(self):
+        block_ammounts = self.find_block(
+            "presupuesto (pesos con dos decimales")
+        if not block_ammounts:
+            # considerar otras medidas como variantes
+            return
+        data = self.get_json_variables()
+        #data["block_ammounts"] = block_ammounts
+
+        block_ammounts_rigth = block_ammounts.get("vertices")[1].get("x")
+        block_ammounts_left = block_ammounts.get("vertices")[0].get("x")
+        data["ammounts_center"] = (block_ammounts_rigth + block_ammounts_left) / 2
+        self.json_variables = json.dumps(data)
+        self.save()
+
     def find_headers(self):
-        colina = self.first_block_by_text(u"colonia o pueblo originario")
-        proyecto = self.first_block_by_text(u"proyecto")
-        descripcion = self.first_block_by_text(u"descripción")
-        avance = self.first_block_by_text(u"avance del proyecto")
-        aprobado = self.first_block_by_text(u"aprobado")
-        modificado = self.first_block_by_text(u"modificado")
-        ejercido = self.first_block_by_text(u"ejercido")
-        variacion = self.first_block_by_text(u"variación")
+        import re
+        colina = self.find_block(u"colonia o pueblo originario")
+        proyecto = self.find_block(u"proyecto")
+        descripcion = self.find_block(u"descripción")
+        avance = self.find_block(u"avance del proyecto")
+        if not avance:
+            avance = self.find_block(u"del proyecto")
+            if not avance:
+                avance = self.find_block(regex=r'Proyecto(?:$|\s\S+)?')
+
+        aprobado = self.find_block(u"aprobado")
+        # --------------------------------------------------------------------
+        # ajuste de ancho en aprovacion
+        if aprobado:
+            text_aprobado = aprobado.get("w")
+            if text_aprobado:
+                x = re.search(r'Aprobado(\s\D)?$', text_aprobado)
+                if not x:
+                    vertices = aprobado.get("vertices")
+                    p1 = vertices[1]
+                    p2 = vertices[2]
+                    p1["x"] = p1["x"] + 10
+                    p2["x"] = p2["x"] + 10
+                    aprobado["vertices"] = [vertices[0], p1, p2, vertices[3]]
+        # --------------------------------------------------------------------
+        modificado = self.find_block(u"modificado")
+        ejercido = self.find_block(u"ejercido")
+        variacion = self.find_block(u"variación")
 
         data = self.get_json_variables()
         data["columns_heades"] = [
@@ -432,51 +500,45 @@ class PPImage(models.Model):
         self.json_variables = json.dumps(data)
         self.save()
 
-    def calculate_bot_columns(self):
+    def calculate_columns_bot(self):
         # alto maximo del archivo entre 1700 y 1750
-        bot_columns = 1750
+        columns_bot = 1750
+        def compare_block_bot(columns_bot, block, similar_min=0):
+            if block:
+                similar_value=block.get("similar_value")
+                if similar_value>similar_min:
+                    vertices=block.get("vertices")
+                    if columns_bot>vertices[0].get("y"):
+                        columns_bot=vertices[0].get("y")
+            return columns_bot
+            
 
         # busqueda del bloque de firmas
-        block_elaboro = self.first_block_by_text("Elaboro :", lines=True)
-        if block_elaboro:
-            vertices=block_elaboro.get("vertices")
-            if bot_columns>vertices[0].get("y"):
-                bot_columns=vertices[0].get("y")
+        block_elaboro = self.find_block("Elaboro :", lines=True)
+        columns_bot = compare_block_bot(columns_bot, block_elaboro)
+        block_elaboro_re = self.find_block(
+            regex=r'(REFIERE|REMANENTE|AUTORI|ELABOR|LABORADO|DIRECTOR)')
+        columns_bot = compare_block_bot(columns_bot, block_elaboro_re)
 
-        block_autorizo = self.first_block_by_text("Autorizo :", lines=True)
-        if block_autorizo:
-            vertices=block_autorizo.get("vertices")
-            if bot_columns>vertices[0].get("y"):
-                bot_columns=vertices[0].get("y")
+        block_autorizo = self.find_block("Autorizo :", lines=True)
+        columns_bot = compare_block_bot(columns_bot, block_autorizo)
 
         # busqueda de la palabra total
-        block_total_urg = self.first_block_by_text("total urg")
-        if block_total_urg:
-            vertices=block_total_urg.get("vertices")
-            if bot_columns>vertices[0].get("y"):
-                bot_columns=vertices[0].get("y")
+        block_total_urg = self.find_block("total urg")
+        columns_bot = compare_block_bot(columns_bot, block_total_urg)
 
-        block_total = self.first_block_by_text("total")
-        if block_total:
-            similar_value=block_total.get("similar_value")
-            if similar_value>0.8:
-                vertices=block_total.get("vertices")
-                if bot_columns>vertices[0].get("y"):
-                    bot_columns=vertices[0].get("y")
-
-        print 
-        print bot_columns
-        print
+        block_total = self.find_block("total")
+        columns_bot = compare_block_bot(columns_bot, block_total, 0.8)
 
         data = self.get_json_variables()
-        data["bot_columns"] = bot_columns
+        data["columns_bot"] = columns_bot
         self.json_variables = json.dumps(data)
         self.save()
 
     def get_data_from_columns(self):
 
         data = self.get_json_variables()
-        bot_columns = data.get("bot_columns")
+        columns_bot = data.get("columns_bot")
         columns_top = data.get("columns_top")
         columns_boxs = data.get("columns_boxs")
         columns_data=[]
@@ -485,7 +547,7 @@ class PPImage(models.Model):
             left = column_box.get("left")
             right = column_box.get("right")
             data_in_block=self.get_blocks_in_box(
-                left, right, columns_top, bot_columns)
+                left, right, columns_top, columns_bot)
             columns_data.append(
                 [
                 {
@@ -498,6 +560,35 @@ class PPImage(models.Model):
         self.json_variables = json.dumps(data)
         self.save()
 
+    def cleand_columns_numbers(self):
+        from scripts.data_cleaner import similar
+        data = self.get_json_variables()
+        columns_data = data["columns_data"]
+        invalids_values=["1", "2", "3", "3/1"]
+        for column_index in [3, 4, 5, 6, 7]:
+            approved_data=[]
+            for number_data in columns_data[column_index]:
+                invalid=False
+                w=number_data.get("w")
+                vertices=number_data.get("vertices")
+                for invalid_value in []:
+                    similar_value=similar(w, invalid_value)
+                    if similar_value>0.5:
+                        invalid=True
+                        break
+
+                if invalid:
+                    continue
+
+                approved_data.append({
+                    "w": w,
+                    "vertices": vertices
+                })
+            columns_data[column_index]=approved_data
+
+        data["columns_data"] = columns_data
+        self.json_variables = json.dumps(data)
+        self.save()
 
     def get_blocks_in_box(self, left, right, top, bot):
         print "--------------------------"
@@ -580,7 +671,8 @@ class PPImage(models.Model):
         try:
             return json.loads(self.json_variables)
         except Exception as e:
-            print e
+            print ("self.json_variables No JSON object could be decoded, "
+                   "se reiniciara a { }")
             return {}
 
     def calcColumns(self, type_col, strict=False):
