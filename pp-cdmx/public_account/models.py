@@ -277,6 +277,7 @@ class PPImage(models.Model):
             return e['similar_value']
         opcion.sort(key=block_value)
 
+        print text
         for o in opcion:
             w=o.get("block").get("w")
             value=o.get("similar_value")
@@ -414,18 +415,44 @@ class PPImage(models.Model):
         if aprobado:
             text_aprobado = aprobado.get("w")
             if text_aprobado:
-                x = re.search(r'Aprobado(\s\D)?$', text_aprobado)
+                #se espera un asterisco obligatorio despues de Aprobado
+                x = re.search(r'Aprobado( )*(\*)', text_aprobado)
+                print text_aprobado
                 if not x:
+                    print "se le agrego variacion de 10 pixeles" 
                     vertices = aprobado.get("vertices")
                     p1 = vertices[1]
                     p2 = vertices[2]
                     p1["x"] = p1["x"] + 10
                     p2["x"] = p2["x"] + 10
                     aprobado["vertices"] = [vertices[0], p1, p2, vertices[3]]
+                else:
+                    print "no se le agrego variacion"
+                print
         # --------------------------------------------------------------------
         modificado = self.find_block(u"modificado")
         ejercido = self.find_block(u"ejercido")
         variacion = self.find_block(u"variación")
+        # --------------------------------------------------------------------
+        # ajuste de ancho en variacion
+        if variacion:
+            text_variacion = variacion.get("w").strip()
+            if text_variacion:
+                #el porciento puede ser con salto de linea
+                x = re.search(r'Variación(\s)*(%|\$)', text_variacion)
+                print text_variacion
+                if not x:
+                    print "se le agrego variacion de 20 pixeles"
+                    vertices = variacion.get("vertices")
+                    p1 = vertices[1]
+                    p2 = vertices[2]
+                    p1["x"] = p1["x"] + 20
+                    p2["x"] = p2["x"] + 20
+                    variacion["vertices"] = [vertices[0], p1, p2, vertices[3]]
+                else:
+                    print "no se le agrego variacion"
+                print
+        # --------------------------------------------------------------------
 
         data = self.get_json_variables()
         data["columns_heades"] = [
@@ -515,20 +542,22 @@ class PPImage(models.Model):
 
         # busqueda del bloque de firmas
         block_elaboro = self.find_block("Elaboro :", lines=True)
-        columns_bot = compare_block_bot(columns_bot, block_elaboro)
+        columns_bot = compare_block_bot(columns_bot, block_elaboro, 0.8)
         block_elaboro_re = self.find_block(
             regex=r'(REFIERE|REMANENTE|AUTORI|ELABOR|LABORADO|DIRECTOR)')
         columns_bot = compare_block_bot(columns_bot, block_elaboro_re)
 
         block_autorizo = self.find_block("Autorizo :", lines=True)
-        columns_bot = compare_block_bot(columns_bot, block_autorizo)
+        columns_bot = compare_block_bot(columns_bot, block_autorizo, 0.8)
 
         # busqueda de la palabra total
         block_total_urg = self.find_block("total urg")
-        columns_bot = compare_block_bot(columns_bot, block_total_urg)
+        columns_bot = compare_block_bot(columns_bot, block_total_urg, 0.8)
 
         block_total = self.find_block("total")
         columns_bot = compare_block_bot(columns_bot, block_total, 0.8)
+
+        #agregar a los calculos
 
         data = self.get_json_variables()
         data["columns_bot"] = columns_bot
@@ -562,6 +591,7 @@ class PPImage(models.Model):
 
     def cleand_columns_numbers(self):
         from scripts.data_cleaner import similar
+        import re
         data = self.get_json_variables()
         columns_data = data["columns_data"]
         invalids_values=["1", "2", "3", "3/1"]
@@ -585,19 +615,285 @@ class PPImage(models.Model):
                     "vertices": vertices
                 })
             columns_data[column_index]=approved_data
+        #eliminacion de el primer dato si es un numero entre parentesis
+
+        for column_data in columns_data:
+            first_line = column_data[0].get("w")
+            x = re.search(r'^\( *\d *\)\n?', first_line)
+            if x:
+                ignore=column_data.pop(0)
 
         data["columns_data"] = columns_data
         self.json_variables = json.dumps(data)
         self.save()
 
-    def get_blocks_in_box(self, left, right, top, bot):
-        print "--------------------------"
-        print left
-        print right
-        print top
-        print bot
-        print "--------------------------"
-        vision_data = self.get_vision_data().get("full", {})
+
+    """-----------------------------------------------------------------------
+        se espera que en este punto ya se tenga calculado la primera vercion de 
+        los datos por cada columna, los bloque internos estan limitados a una
+        linea, siedo los mas reelevantes las ultimas 5 columnas, quienes se
+        garantisa siempre tendran una sola linea y entre ellas existe una
+        alineacion horizontal, sin embargo es posibble que en algunos casos se
+        encuentre un vlor  "-" que no se identifique, o un dato extra en las
+        esquinas como folios o campos no identificados, para lo cual se usara
+        un sistema simple de seleccion de la mejor columna
+    -----------------------------------------------------------------------"""
+
+    def select_best_column_index(self):
+        data = self.get_json_variables()
+        columns_data=data["columns_data"]
+        columns_counts={}
+
+        for index in range(3, 8):
+            column_leng=len(columns_data[index])
+            if column_leng in columns_counts:
+                columns_counts[column_leng]["count"]+=1
+                columns_counts[column_leng]["columns"].append(index)
+            else:
+                columns_counts[column_leng]={
+                    "count":1,
+                    "columns": [index]
+                }
+        normal_counts=[key for key, value in columns_counts.items()]
+        normal_counts.sort()
+        normal_count=normal_counts[0]
+        best_column_index = columns_counts[normal_count]["columns"][0]
+
+        data["best_column_index"] = best_column_index
+        self.json_variables = json.dumps(data)
+        self.save()
+        return best_column_index
+
+
+    def calculate_columns_data_top(self):
+        data = self.get_json_variables()
+        columns_data=data["columns_data"]
+        row_0_y=columns_data[0][0].get("vertices")[0].get("y")
+        row_1_y=columns_data[1][0].get("vertices")[0].get("y")
+        row_2_y=columns_data[2][0].get("vertices")[0].get("y")
+
+        #el limite superior de el dato mas alto con un ajuste de -5 pixeles
+        row_x_y = row_0_y if row_0_y < row_1_y else row_1_y
+        data["columns_data_top"] = row_x_y if row_x_y < row_2_y else row_2_y
+        data["columns_data_top"] -= 5
+        self.json_variables = json.dumps(data)
+        self.save()
+        return data["columns_data_top"]
+
+
+    def calculate_columns_data_bot(self):
+        data = self.get_json_variables()
+        columns_data=data["columns_data"]
+        row_0_y=columns_data[0][-1].get("vertices")[2].get("y")
+        row_1_y=columns_data[1][-1].get("vertices")[2].get("y")
+        row_2_y=columns_data[2][-1].get("vertices")[2].get("y")
+
+        #el limite superior de el dato mas alto con un ajuste de -5 pixeles
+        row_x_y = row_0_y if row_0_y > row_1_y else row_1_y
+        data["columns_data_bot"] = row_x_y if row_x_y > row_2_y else row_2_y
+        data["columns_data_bot"] += 5
+        self.json_variables = json.dumps(data)
+        self.save()
+        return data["columns_data_bot"]
+
+    def get_table_data(self, limit_position="top"):
+        data = self.get_json_variables()
+        best_column_index=data.get(
+            "best_column_index", self.select_best_column_index())
+        columns_data_top=data.get(
+            "columns_data_top", self.calculate_columns_data_top())
+        columns_data_bot=data.get(
+            "columns_data_bot", self.calculate_columns_data_bot())
+
+        reference_column = data["columns_data"][best_column_index]
+
+        if limit_position == "top":
+            vertical_limits = self.box_limits_top(
+                reference_column, columns_data_top, columns_data_bot
+                )
+
+        elif limit_position == "center":
+            vertical_limits = self.box_limits_center(
+                reference_column, columns_data_top, columns_data_bot
+                )
+
+        elif limit_position == "bot":
+            vertical_limits = self.box_limits_bot(
+                reference_column, columns_data_top, columns_data_bot
+                )
+        else:
+            return
+
+        columns_data = data.get("columns_data")
+
+        table_data=[]
+
+        print vertical_limits
+
+        for vertical_limit in vertical_limits:
+            row_top = vertical_limit.get("top")
+            row_bot = vertical_limit.get("bot")
+            row_data = []
+            for column_data in columns_data:
+                row_blocks=[]
+                for block in column_data:
+                    vertices = block.get("vertices")
+                    block_top = vertices[0].get("y")
+                    block_bot = vertices[3].get("y")
+
+                    if block_top >= row_top and block_bot <= row_bot:
+                        # palabra completos dentro de los limites
+                        row_blocks.append(block)
+                        continue
+
+                    full=block_bot-block_top
+                    if (block_top >= row_top and block_top <= row_bot):
+                        # porcion atravezada por bot
+                        fraccion=row_bot-block_top
+                    elif(block_bot >= row_top and block_bot <= row_bot):
+                        # porcion atravezada por top
+                        fraccion=block_bot-row_top
+                    elif row_top >= block_top and row_bot <= block_bot:
+                        # la linea atravieza los limites, se deve contemplar?
+                        row_blocks.append(block)
+                        continue
+                    else:
+                        continue
+                    porcentage=(fraccion*100)/full
+                    if porcentage>60:
+                        row_blocks.append(block)
+
+                line_text = u" ".join(
+                    [line.get("w") for line in row_blocks])
+                line_text = line_text.replace(u"\n", " ").strip()
+                row_data.append(line_text)
+
+            table_data.append(row_data)
+        from pprint import pprint
+        pprint(table_data)
+
+        data["table_data"] = table_data
+        self.json_variables = json.dumps(data)
+        self.save()
+
+
+    def box_limits_top(
+        self, reference_column, columns_data_top, columns_data_bot):
+
+        vertical_limits=[]
+        reference_row_top=False
+
+        for row_data in reference_column:
+            if not reference_row_top:
+                reference_row_top=columns_data_top
+                continue
+
+            row_top = row_data.get("vertices")[0].get("y") - 3
+            vertical_limits.append({
+                "top": reference_row_top,
+                "bot": row_top
+            })
+            reference_row_top = row_top
+
+        if reference_row_top:
+            vertical_limits.append({
+                    "top": reference_row_top,
+                    "bot": columns_data_bot +3
+                })
+        return vertical_limits
+
+    def box_limits_center(
+        self, reference_column, columns_data_top, columns_data_bot):
+
+        vertical_limits=[]
+        linea_media=4
+        centers=[]
+
+        for row_data in reference_column:
+            centers.append({
+                "top": row_data.get("vertices")[0].get("y"),
+                "bot":row_data.get("vertices")[2].get("y"),
+                "over": False,
+                })
+
+        while not all([c["over"] for c in centers]):
+            for index in range(len(centers)):
+
+                center = centers[index]
+                if center["over"]:
+                    continue
+                previus_center = centers[index-1] if index>0 else None
+                next_center = centers[index+1] if index+1<len(centers) else None
+
+                center["top"]-=int(linea_media/2)
+                center["bot"]+=int(linea_media/2)
+
+                if previus_center:
+                    if not previus_center["over"]:
+                        previus_center["top"]-=int(linea_media/2)
+                        previus_center["bot"]+=int(linea_media/2)
+                    reference_top_limit=previus_center["bot"]
+                else:
+                    reference_top_limit=columns_data_top
+                if center["top"] <= reference_top_limit:
+                    center["over"] = True
+                    if previus_center:
+                        previus_center["over"] = True
+
+
+                if next_center:
+                    if not next_center["over"]:
+                        next_center["top"]-=int(linea_media/2)
+                        next_center["bot"]+=int(linea_media/2)
+                    reference_bot_limit=next_center["top"]
+                else:
+                    reference_bot_limit=columns_data_bot
+                if center["bot"] >= reference_bot_limit:
+                    center["over"] = True
+                    if next_center:
+                        next_center["over"] = True
+
+        for index in range(len(centers)):
+            center = centers[index]
+            next_center = centers[index+1] if index+1<len(centers) else None
+            if next_center:
+                center_media=(center["bot"] + next_center["top"]) /2
+                center["bot"] = center_media
+                next_center["top"] = center_media
+
+            vertical_limits.append({
+                "top": center["top"],
+                "bot":center["bot"],
+                })
+
+        return vertical_limits
+
+    def box_limits_bot(
+        self, reference_column, columns_data_top, columns_data_bot):
+
+        vertical_limits=[]
+        reference_row_top=columns_data_top
+
+        for row_data in reference_column:
+            row_bot = row_data.get("vertices")[2].get("y") + 3
+            vertical_limits.append({
+                "top": reference_row_top,
+                "bot": row_bot
+            })
+            reference_row_top = row_bot
+
+        return vertical_limits
+
+
+    def get_blocks_in_box(self, left, right, top, bot, vision_data=False):
+        # print "--------------------------"
+        # print left
+        # print right
+        # print top
+        # print bot
+        # print "--------------------------"
+        if not vision_data:
+            vision_data = self.get_vision_data().get("full", {})
         first_opcion = False
         data = []
         for block in vision_data:
@@ -607,6 +903,8 @@ class PPImage(models.Model):
 
             if not (y_top >= top and y_bot <= bot):
                 # fuera de los limites alto y bajo
+
+                #comprovar el porcentage interno antes de ignorarlo
                 continue
 
             x_left = vertices[0].get("x")
@@ -697,8 +995,9 @@ class PPImage(models.Model):
                 set_new_error(self, e)
         return column_values if is_sub else (column_values, len_array)
 
-    def comprobate_stability(self, all_orphan_rows, ord_numbers, 
-                            ord_suburbs, final_compr=False, from_last=False):
+    def comprobate_stability(
+        self, all_orphan_rows, ord_numbers, 
+        ord_suburbs, final_compr=False, from_last=False):
         stable_row = len(ord_numbers) == len(ord_suburbs)
         if not stable_row:
             real_ord_suburbs = [x for x in ord_suburbs if x["suburb_id"]]

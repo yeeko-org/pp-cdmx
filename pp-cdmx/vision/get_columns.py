@@ -292,6 +292,7 @@ def get_year_data_v2(mypath, pp_year=2018, th=False):
     scraping_simple = {}
     re_vars = re.compile(r'^.*\\PP-(\d{4})-(\w{2,3})_(\d{4}).png$')
     for file in all_pdf_files:
+        print file
         if re_vars.match(file[1]):
             all_vars = re.sub(re_vars, '\\1-\\2-\\3', file[1])
         else:
@@ -319,6 +320,7 @@ def get_year_data_v2(mypath, pp_year=2018, th=False):
         variables["full"] = vision_data
         ppimage.vision_data = json.dumps(variables)
         ppimage.save()
+        print ppimage
 
 
 def extractDataForLens(path_image, year=2018, th=False):
