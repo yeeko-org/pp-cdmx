@@ -34,8 +34,8 @@ class PublicAccount(models.Model):
         max_length=80, default=u"uncleaned",
         blank=True, null=True)
     error_cell = models.TextField(
-        blank=True, null=True, 
-        verbose_name="pila de errores")    
+        blank=True, null=True,
+        verbose_name="pila de errores")
 
     approved = models.DecimalField(
         max_digits=12, decimal_places=2,
@@ -54,19 +54,19 @@ class PublicAccount(models.Model):
         choices=VERTICAL_ALIGN_AMMOUNTS, max_length=50, blank=True, null=True)
 
     def __unicode__(self):
-        return u"%s -- %s"%(self.period_pp, self.townhall)
+        return u"%s -- %s" % (self.period_pp, self.townhall)
 
     def column_formatter(self, reset=False, image_num=None):
-        #LUCIAN: Esto es solo la continuación de lo que ya comenzaste
-        #Lucian, creo que ya no es necesario importar esto:
+        # LUCIAN: Esto es solo la continuación de lo que ya comenzaste
+        # Lucian, creo que ya no es necesario importar esto:
         from project.models import FinalProject
         import numpy
         from pprint import pprint
 
         suburbs_dict = []
         is_pa_stable = True
-        all_orphan_rows= {"suburbs":[], "numbers":[]}
-        all_images=PPImage.objects.filter(public_account=self)
+        all_orphan_rows = {"suburbs": [], "numbers": []}
+        all_images = PPImage.objects.filter(public_account=self)
         if image_num:
             all_images = all_images.filter(path__icontains=image_num)
 
@@ -75,18 +75,18 @@ class PublicAccount(models.Model):
                 .filter(suburb__townhall=self.townhall,
                         period_pp=self.period_pp,
                         image__in=all_images)\
-                .update(image=None, similar_suburb_name=None, error_cell="", 
-                        inserted_data=False, approved=None, modified=None, 
+                .update(image=None, similar_suburb_name=None, error_cell="",
+                        inserted_data=False, approved=None, modified=None,
                         executed=None, progress=None, variation=None)
             PPImage.objects.filter(public_account=self).update(status=None,
-                error_cell=None, len_array_numbers=None,
-                data_row_numbers=None, data_row_suburbs=None)
+                                                               error_cell=None, len_array_numbers=None,
+                                                               data_row_numbers=None, data_row_suburbs=None)
             self.error_cell = ""
             self.status = None
             self.save()
         for image in all_images:
             print image.path
-            ord_suburbs= image.calcColumns('suburbs')
+            ord_suburbs = image.calcColumns('suburbs')
 
             number_results, len_array = image.calcColumns('numbers')
             standar_dev = numpy.std(len_array)
@@ -96,7 +96,7 @@ class PublicAccount(models.Model):
                     'numbers', True)
                 standar_dev_stict = numpy.std(len_array_sctict)
                 if standar_dev_stict < standar_dev:
-                    print u"el no estricto es %s"%len_array
+                    print u"el no estricto es %s" % len_array
                     number_results = number_results_stict
                     len_array = len_array_sctict
                     standar_dev = numpy.std(len_array)
@@ -105,7 +105,7 @@ class PublicAccount(models.Model):
                     image.save()
                 else:
                     print "no mejora el len_array"
-                    print u"el estricto es %s"%len_array_sctict
+                    print u"el estricto es %s" % len_array_sctict
             print len_array
             if standar_dev <= 0.8:
                 ord_numbers = []
@@ -123,27 +123,29 @@ class PublicAccount(models.Model):
                                 if x.get("correct_format")]
                             if len(strict_res) == rows_count:
                                 number_results[idx_amm] = strict_res
-                                set_new_error(image, 
+                                set_new_error(image,
                                     "Forzamos el formato correcto a %s"%ammount)"""
 
                         try:
-                            complete_row[ammount] = number_results[idx_amm][idx]
+                            complete_row[ammount] = number_results[
+                                idx_amm][idx]
                         except Exception as e:
-                            #print ammount
-                            #print row
-                            #print e
+                            # print ammount
+                            # print row
+                            # print e
                             pass
                     complete_row["seq"] = idx
                     complete_row["image_id"] = image.id
                     ord_numbers.append(complete_row)
-                all_orphan_rows = image.comprobate_stability(all_orphan_rows, 
-                                        ord_numbers, ord_suburbs)
+                all_orphan_rows = image.comprobate_stability(all_orphan_rows,
+                                                             ord_numbers, ord_suburbs)
             else:
                 print "inestable_numbers"
                 image.status = "inestable_numbers"
                 image.save()
                 is_pa_stable = False
-                set_new_error(image, u"No todas las columnas numéricas coinciden")
+                set_new_error(
+                    image, u"No todas las columnas numéricas coinciden")
                 continue
 
         if image_num:
@@ -155,9 +157,9 @@ class PublicAccount(models.Model):
             print u"*******los números crudos:**********"
             print len_array
             pprint(number_results)
-            #return
+            # return
         if is_pa_stable or True:
-            #si existen filas huérfanos:
+            # si existen filas huérfanos:
             len_orphan = len(all_orphan_rows)
             new_orphan_rows = []
             subs_alone = None
@@ -176,14 +178,14 @@ class PublicAccount(models.Model):
                 finalproject__image__isnull=True)
 
             incomp_images = PPImage.objects.filter(public_account=self)\
-                                            .exclude(status='completed')
+                .exclude(status='completed')
 
             self.status = "incompleted" if incomp_images.count() else 'completed'
 
             if missings_subs.count():
                 set_new_error(self, 'Faltan las siguientes Colonias:')
             for sub in missings_subs:
-                set_new_error(self, "%s %s"%(sub.cve_col, sub.name))
+                set_new_error(self, "%s %s" % (sub.cve_col, sub.name))
 
         if not is_pa_stable:
             self.status = "inestable_images"
@@ -219,22 +221,20 @@ class PPImage(models.Model):
         self.get_data_from_columns()
         self.cleand_columns_numbers()
 
-
-
     def find_block(self, text=False, regex=False, full_obj=False, lines=False):
         from scripts.data_cleaner import similar
         import re
         vision_data = self.get_vision_data().get("full", {})
         first_opcion = False
-        opcion=[]
+        opcion = []
         for block in vision_data:
             complete_w = block.get("w", "")
 
             if text:
                 if lines:
                     for line in complete_w.split("\n"):
-                        similar_value=similar(text.lower(), line.lower())
-                        if similar_value>0.5:
+                        similar_value = similar(text.lower(), line.lower())
+                        if similar_value > 0.5:
                             opcion.append(
                                 {
                                     "block": block,
@@ -243,8 +243,8 @@ class PPImage(models.Model):
                             )
 
                 else:
-                    similar_value=similar(text.lower(), complete_w.lower())
-                if similar_value>0.5:
+                    similar_value = similar(text.lower(), complete_w.lower())
+                if similar_value > 0.5:
                     opcion.append(
                         {
                             "block": block,
@@ -273,23 +273,24 @@ class PPImage(models.Model):
 
         if not opcion:
             return False
+
         def block_value(e):
             return e['similar_value']
         opcion.sort(key=block_value)
 
         print text
         for o in opcion:
-            w=o.get("block").get("w")
-            value=o.get("similar_value")
+            w = o.get("block").get("w")
+            value = o.get("similar_value")
             print w
             print value
             print
 
-        best_opcion=opcion[-1]
-        block=best_opcion.get("block")
-        similar_value=best_opcion.get("similar_value")
+        best_opcion = opcion[-1]
+        block = best_opcion.get("block")
+        similar_value = best_opcion.get("similar_value")
         if full_obj:
-            block["similar_value"]=similar_value
+            block["similar_value"] = similar_value
             return block
         else:
             return {
@@ -305,7 +306,6 @@ class PPImage(models.Model):
         self.find_block_ppd()
         self.find_block_ammounts()
         self.find_headers()
-
 
     def find_block_logo(self):
         vision_data = self.get_vision_data().get("full", {})
@@ -336,7 +336,7 @@ class PPImage(models.Model):
             vertices = first_opcion.get("vertices")
             data = self.get_json_variables()
             #data["logo"] = first_opcion
-            
+
             data["logo_left"] = vertices[0].get("x")
             data["logo_bottom"] = vertices[3].get("y")
             self.json_variables = json.dumps(data)
@@ -358,7 +358,8 @@ class PPImage(models.Model):
 
     def find_block_title(self):
         block_title = self.find_block(
-            "cuenta publica de la ciudad de mexico %s" % (self.public_account.period_pp.year))
+            "cuenta publica de la ciudad de mexico %s" %
+            (self.public_account.period_pp.year))
         if not block_title:
             # considerar otras medidas como variantes
             return
@@ -394,7 +395,8 @@ class PPImage(models.Model):
 
         block_ammounts_rigth = block_ammounts.get("vertices")[1].get("x")
         block_ammounts_left = block_ammounts.get("vertices")[0].get("x")
-        data["ammounts_center"] = (block_ammounts_rigth + block_ammounts_left) / 2
+        data["ammounts_center"] = (
+            block_ammounts_rigth + block_ammounts_left) / 2
         self.json_variables = json.dumps(data)
         self.save()
 
@@ -415,11 +417,11 @@ class PPImage(models.Model):
         if aprobado:
             text_aprobado = aprobado.get("w")
             if text_aprobado:
-                #se espera un asterisco obligatorio despues de Aprobado
+                # se espera un asterisco obligatorio despues de Aprobado
                 x = re.search(r'Aprobado( )*(\*)', text_aprobado)
                 print text_aprobado
                 if not x:
-                    print "se le agrego variacion de 10 pixeles" 
+                    print "se le agrego variacion de 10 pixeles"
                     vertices = aprobado.get("vertices")
                     p1 = vertices[1]
                     p2 = vertices[2]
@@ -438,7 +440,7 @@ class PPImage(models.Model):
         if variacion:
             text_variacion = variacion.get("w").strip()
             if text_variacion:
-                #el porciento puede ser con salto de linea
+                # el porciento puede ser con salto de linea
                 x = re.search(r'Variación(\s)*(%|\$)', text_variacion)
                 print text_variacion
                 if not x:
@@ -530,15 +532,15 @@ class PPImage(models.Model):
     def calculate_columns_bot(self):
         # alto maximo del archivo entre 1700 y 1750
         columns_bot = 1750
+
         def compare_block_bot(columns_bot, block, similar_min=0):
             if block:
-                similar_value=block.get("similar_value")
-                if similar_value>similar_min:
-                    vertices=block.get("vertices")
-                    if columns_bot>vertices[0].get("y"):
-                        columns_bot=vertices[0].get("y")
+                similar_value = block.get("similar_value")
+                if similar_value > similar_min:
+                    vertices = block.get("vertices")
+                    if columns_bot > vertices[0].get("y"):
+                        columns_bot = vertices[0].get("y")
             return columns_bot
-            
 
         # busqueda del bloque de firmas
         block_elaboro = self.find_block("Elaboro :", lines=True)
@@ -557,7 +559,7 @@ class PPImage(models.Model):
         block_total = self.find_block("total")
         columns_bot = compare_block_bot(columns_bot, block_total, 0.8)
 
-        #agregar a los calculos
+        # agregar a los calculos
 
         data = self.get_json_variables()
         data["columns_bot"] = columns_bot
@@ -570,20 +572,20 @@ class PPImage(models.Model):
         columns_bot = data.get("columns_bot")
         columns_top = data.get("columns_top")
         columns_boxs = data.get("columns_boxs")
-        columns_data=[]
+        columns_data = []
 
         for column_box in columns_boxs:
             left = column_box.get("left")
             right = column_box.get("right")
-            data_in_block=self.get_blocks_in_box(
+            data_in_block = self.get_blocks_in_box(
                 left, right, columns_top, columns_bot)
             columns_data.append(
                 [
-                {
-                    "w": line.get("w"),
-                    "vertices": line.get("vertices")
-                }
-                for line in data_in_block]
+                    {
+                        "w": line.get("w"),
+                        "vertices": line.get("vertices")
+                    }
+                    for line in data_in_block]
             )
         data["columns_data"] = columns_data
         self.json_variables = json.dumps(data)
@@ -594,17 +596,17 @@ class PPImage(models.Model):
         import re
         data = self.get_json_variables()
         columns_data = data["columns_data"]
-        invalids_values=["1", "2", "3", "3/1"]
+        invalids_values = ["1", "2", "3", "3/1"]
         for column_index in [3, 4, 5, 6, 7]:
-            approved_data=[]
+            approved_data = []
             for number_data in columns_data[column_index]:
-                invalid=False
-                w=number_data.get("w")
-                vertices=number_data.get("vertices")
+                invalid = False
+                w = number_data.get("w")
+                vertices = number_data.get("vertices")
                 for invalid_value in []:
-                    similar_value=similar(w, invalid_value)
-                    if similar_value>0.5:
-                        invalid=True
+                    similar_value = similar(w, invalid_value)
+                    if similar_value > 0.5:
+                        invalid = True
                         break
 
                 if invalid:
@@ -614,22 +616,21 @@ class PPImage(models.Model):
                     "w": w,
                     "vertices": vertices
                 })
-            columns_data[column_index]=approved_data
-        #eliminacion de el primer dato si es un numero entre parentesis
+            columns_data[column_index] = approved_data
+        # eliminacion de el primer dato si es un numero entre parentesis
 
         for column_data in columns_data:
             first_line = column_data[0].get("w")
             x = re.search(r'^\( *\d *\)\n?', first_line)
             if x:
-                ignore=column_data.pop(0)
+                ignore = column_data.pop(0)
 
         data["columns_data"] = columns_data
         self.json_variables = json.dumps(data)
         self.save()
 
-
     """-----------------------------------------------------------------------
-        se espera que en este punto ya se tenga calculado la primera vercion de 
+        se espera que en este punto ya se tenga calculado la primera vercion de
         los datos por cada columna, los bloque internos estan limitados a una
         linea, siedo los mas reelevantes las ultimas 5 columnas, quienes se
         garantisa siempre tendran una sola linea y entre ellas existe una
@@ -641,22 +642,21 @@ class PPImage(models.Model):
 
     def select_best_column_index(self):
         data = self.get_json_variables()
-        columns_data=data["columns_data"]
-        columns_counts={}
+        columns_data = data["columns_data"]
+        columns_counts = {}
 
         for index in range(3, 8):
-            column_leng=len(columns_data[index])
+            column_leng = len(columns_data[index])
             if column_leng in columns_counts:
-                columns_counts[column_leng]["count"]+=1
+                columns_counts[column_leng]["count"] += 1
                 columns_counts[column_leng]["columns"].append(index)
             else:
-                columns_counts[column_leng]={
-                    "count":1,
+                columns_counts[column_leng] = {
+                    "count": 1,
                     "columns": [index]
                 }
-        normal_counts=[key for key, value in columns_counts.items()]
-        normal_counts.sort()
-        normal_count=normal_counts[0]
+        normal_counts = sorted([key for key, value in columns_counts.items()])
+        normal_count = normal_counts[0]
         best_column_index = columns_counts[normal_count]["columns"][0]
 
         data["best_column_index"] = best_column_index
@@ -664,15 +664,14 @@ class PPImage(models.Model):
         self.save()
         return best_column_index
 
-
     def calculate_columns_data_top(self):
         data = self.get_json_variables()
-        columns_data=data["columns_data"]
-        row_0_y=columns_data[0][0].get("vertices")[0].get("y")
-        row_1_y=columns_data[1][0].get("vertices")[0].get("y")
-        row_2_y=columns_data[2][0].get("vertices")[0].get("y")
+        columns_data = data["columns_data"]
+        row_0_y = columns_data[0][0].get("vertices")[0].get("y")
+        row_1_y = columns_data[1][0].get("vertices")[0].get("y")
+        row_2_y = columns_data[2][0].get("vertices")[0].get("y")
 
-        #el limite superior de el dato mas alto con un ajuste de -5 pixeles
+        # el limite superior de el dato mas alto con un ajuste de -5 pixeles
         row_x_y = row_0_y if row_0_y < row_1_y else row_1_y
         data["columns_data_top"] = row_x_y if row_x_y < row_2_y else row_2_y
         data["columns_data_top"] -= 5
@@ -680,15 +679,14 @@ class PPImage(models.Model):
         self.save()
         return data["columns_data_top"]
 
-
     def calculate_columns_data_bot(self):
         data = self.get_json_variables()
-        columns_data=data["columns_data"]
-        row_0_y=columns_data[0][-1].get("vertices")[2].get("y")
-        row_1_y=columns_data[1][-1].get("vertices")[2].get("y")
-        row_2_y=columns_data[2][-1].get("vertices")[2].get("y")
+        columns_data = data["columns_data"]
+        row_0_y = columns_data[0][-1].get("vertices")[2].get("y")
+        row_1_y = columns_data[1][-1].get("vertices")[2].get("y")
+        row_2_y = columns_data[2][-1].get("vertices")[2].get("y")
 
-        #el limite superior de el dato mas alto con un ajuste de -5 pixeles
+        # el limite superior de el dato mas alto con un ajuste de -5 pixeles
         row_x_y = row_0_y if row_0_y > row_1_y else row_1_y
         data["columns_data_bot"] = row_x_y if row_x_y > row_2_y else row_2_y
         data["columns_data_bot"] += 5
@@ -698,11 +696,11 @@ class PPImage(models.Model):
 
     def get_table_data(self, limit_position="top"):
         data = self.get_json_variables()
-        best_column_index=data.get(
+        best_column_index = data.get(
             "best_column_index", self.select_best_column_index())
-        columns_data_top=data.get(
+        columns_data_top = data.get(
             "columns_data_top", self.calculate_columns_data_top())
-        columns_data_bot=data.get(
+        columns_data_bot = data.get(
             "columns_data_bot", self.calculate_columns_data_bot())
 
         reference_column = data["columns_data"][best_column_index]
@@ -710,23 +708,23 @@ class PPImage(models.Model):
         if limit_position == "top":
             vertical_limits = self.box_limits_top(
                 reference_column, columns_data_top, columns_data_bot
-                )
+            )
 
         elif limit_position == "center":
             vertical_limits = self.box_limits_center(
                 reference_column, columns_data_top, columns_data_bot
-                )
+            )
 
         elif limit_position == "bot":
             vertical_limits = self.box_limits_bot(
                 reference_column, columns_data_top, columns_data_bot
-                )
+            )
         else:
             return
 
         columns_data = data.get("columns_data")
 
-        table_data=[]
+        table_data = []
 
         print vertical_limits
 
@@ -735,7 +733,7 @@ class PPImage(models.Model):
             row_bot = vertical_limit.get("bot")
             row_data = []
             for column_data in columns_data:
-                row_blocks=[]
+                row_blocks = []
                 for block in column_data:
                     vertices = block.get("vertices")
                     block_top = vertices[0].get("y")
@@ -746,21 +744,21 @@ class PPImage(models.Model):
                         row_blocks.append(block)
                         continue
 
-                    full=block_bot-block_top
+                    full = block_bot - block_top
                     if (block_top >= row_top and block_top <= row_bot):
                         # porcion atravezada por bot
-                        fraccion=row_bot-block_top
+                        fraccion = row_bot - block_top
                     elif(block_bot >= row_top and block_bot <= row_bot):
                         # porcion atravezada por top
-                        fraccion=block_bot-row_top
+                        fraccion = block_bot - row_top
                     elif row_top >= block_top and row_bot <= block_bot:
                         # la linea atravieza los limites, se deve contemplar?
                         row_blocks.append(block)
                         continue
                     else:
                         continue
-                    porcentage=(fraccion*100)/full
-                    if porcentage>60:
+                    porcentage = (fraccion * 100) / full
+                    if porcentage > 60:
                         row_blocks.append(block)
 
                 line_text = u" ".join(
@@ -776,16 +774,15 @@ class PPImage(models.Model):
         self.json_variables = json.dumps(data)
         self.save()
 
-
     def box_limits_top(
-        self, reference_column, columns_data_top, columns_data_bot):
+            self, reference_column, columns_data_top, columns_data_bot):
 
-        vertical_limits=[]
-        reference_row_top=False
+        vertical_limits = []
+        reference_row_top = False
 
         for row_data in reference_column:
             if not reference_row_top:
-                reference_row_top=columns_data_top
+                reference_row_top = columns_data_top
                 continue
 
             row_top = row_data.get("vertices")[0].get("y") - 3
@@ -797,57 +794,56 @@ class PPImage(models.Model):
 
         if reference_row_top:
             vertical_limits.append({
-                    "top": reference_row_top,
-                    "bot": columns_data_bot +3
-                })
+                "top": reference_row_top,
+                "bot": columns_data_bot + 3
+            })
         return vertical_limits
 
     def box_limits_center(
-        self, reference_column, columns_data_top, columns_data_bot):
+            self, reference_column, columns_data_top, columns_data_bot):
 
-        vertical_limits=[]
-        linea_media=4
-        centers=[]
+        vertical_limits = []
+        linea_media = 4
+        centers = []
 
         for row_data in reference_column:
             centers.append({
                 "top": row_data.get("vertices")[0].get("y"),
-                "bot":row_data.get("vertices")[2].get("y"),
+                "bot": row_data.get("vertices")[2].get("y"),
                 "over": False,
-                })
+            })
 
         while not all([c["over"] for c in centers]):
             for index in range(len(centers)):
-
                 center = centers[index]
                 if center["over"]:
                     continue
-                previus_center = centers[index-1] if index>0 else None
-                next_center = centers[index+1] if index+1<len(centers) else None
+                previus_center = centers[index - 1] if index > 0 else None
+                next_center = centers[
+                    index + 1] if index + 1 < len(centers) else None
 
-                center["top"]-=int(linea_media/2)
-                center["bot"]+=int(linea_media/2)
+                center["top"] -= int(linea_media / 2)
+                center["bot"] += int(linea_media / 2)
 
                 if previus_center:
                     if not previus_center["over"]:
-                        previus_center["top"]-=int(linea_media/2)
-                        previus_center["bot"]+=int(linea_media/2)
-                    reference_top_limit=previus_center["bot"]
+                        previus_center["top"] -= int(linea_media / 2)
+                        previus_center["bot"] += int(linea_media / 2)
+                    reference_top_limit = previus_center["bot"]
                 else:
-                    reference_top_limit=columns_data_top
+                    reference_top_limit = columns_data_top
                 if center["top"] <= reference_top_limit:
                     center["over"] = True
                     if previus_center:
                         previus_center["over"] = True
 
-
                 if next_center:
                     if not next_center["over"]:
-                        next_center["top"]-=int(linea_media/2)
-                        next_center["bot"]+=int(linea_media/2)
-                    reference_bot_limit=next_center["top"]
+                        next_center["top"] -= int(linea_media / 2)
+                        next_center["bot"] += int(linea_media / 2)
+                    reference_bot_limit = next_center["top"]
                 else:
-                    reference_bot_limit=columns_data_bot
+                    reference_bot_limit = columns_data_bot
                 if center["bot"] >= reference_bot_limit:
                     center["over"] = True
                     if next_center:
@@ -855,24 +851,25 @@ class PPImage(models.Model):
 
         for index in range(len(centers)):
             center = centers[index]
-            next_center = centers[index+1] if index+1<len(centers) else None
+            next_center = centers[index + 1] if index + \
+                1 < len(centers) else None
             if next_center:
-                center_media=(center["bot"] + next_center["top"]) /2
+                center_media = (center["bot"] + next_center["top"]) / 2
                 center["bot"] = center_media
                 next_center["top"] = center_media
 
             vertical_limits.append({
                 "top": center["top"],
-                "bot":center["bot"],
-                })
+                "bot": center["bot"],
+            })
 
         return vertical_limits
 
     def box_limits_bot(
-        self, reference_column, columns_data_top, columns_data_bot):
+            self, reference_column, columns_data_top, columns_data_bot):
 
-        vertical_limits=[]
-        reference_row_top=columns_data_top
+        vertical_limits = []
+        reference_row_top = columns_data_top
 
         for row_data in reference_column:
             row_bot = row_data.get("vertices")[2].get("y") + 3
@@ -883,7 +880,6 @@ class PPImage(models.Model):
             reference_row_top = row_bot
 
         return vertical_limits
-
 
     def get_blocks_in_box(self, left, right, top, bot, vision_data=False):
         # print "--------------------------"
@@ -904,7 +900,7 @@ class PPImage(models.Model):
             if not (y_top >= top and y_bot <= bot):
                 # fuera de los limites alto y bajo
 
-                #comprovar el porcentage interno antes de ignorarlo
+                # comprovar el porcentage interno antes de ignorarlo
                 continue
 
             x_left = vertices[0].get("x")
@@ -926,9 +922,9 @@ class PPImage(models.Model):
                 al porcentaje dentro de los limites
                 """
                 lines = get_lines_in_block(block)
-                lines_content=[]
+                lines_content = []
                 for line in lines:
-                    line_content=content_in_limits(line, left, right)
+                    line_content = content_in_limits(line, left, right)
                     if line_content:
                         lines_content.append(line_content)
                 data += lines_content
@@ -940,9 +936,9 @@ class PPImage(models.Model):
                 centrica del bloque es valida
                 """
                 lines = get_lines_in_block(block)
-                lines_content=[]
+                lines_content = []
                 for line in lines:
-                    line_content=content_in_limits(line, left, right)
+                    line_content = content_in_limits(line, left, right)
                     if line_content:
                         lines_content.append(line_content)
                 data += lines_content
@@ -969,8 +965,8 @@ class PPImage(models.Model):
         try:
             return json.loads(self.json_variables)
         except Exception as e:
-            print ("self.json_variables No JSON object could be decoded, "
-                   "se reiniciara a { }")
+            print("self.json_variables No JSON object could be decoded, "
+                  "se reiniciara a { }")
             return {}
 
     def calcColumns(self, type_col, strict=False):
@@ -978,40 +974,47 @@ class PPImage(models.Model):
         from scripts.data_cleaner import calcColumnsNumbers, calculateSuburb
         is_sub = type_col == 'suburbs'
         cut = '1' if is_sub else '2'
-        scraping_values=self.get_json_variables().get(cut, {})
+        scraping_values = self.get_json_variables().get(cut, {})
         if is_sub:
             column_values = calculateSuburb(scraping_values, self)
         else:
-            column_values, len_array = calcColumnsNumbers(scraping_values, strict)
+            column_values, len_array = calcColumnsNumbers(
+                scraping_values, strict)
         if not strict:
             try:
                 #self['data_row_%s'%type_col] = json.dumps(column_values)
-                setattr(self, 'data_row_%s'%type_col, json.dumps(column_values))
+                setattr(
+                    self, 'data_row_%s' %
+                    type_col, json.dumps(column_values))
                 if not is_sub:
                     self.len_array_numbers = json.dumps(len_array)
                 self.save()
             except Exception as e:
-                set_new_error(self, "No logramos guardar columnas %s -->"%type_col)
+                set_new_error(
+                    self,
+                    "No logramos guardar columnas %s -->" %
+                    type_col)
                 set_new_error(self, e)
         return column_values if is_sub else (column_values, len_array)
 
     def comprobate_stability(
-        self, all_orphan_rows, ord_numbers, 
-        ord_suburbs, final_compr=False, from_last=False):
+            self, all_orphan_rows, ord_numbers,
+            ord_suburbs, final_compr=False, from_last=False):
+
         stable_row = len(ord_numbers) == len(ord_suburbs)
         if not stable_row:
             real_ord_suburbs = [x for x in ord_suburbs if x["suburb_id"]]
             if len(ord_numbers) == len(real_ord_suburbs):
                 stable_row = True
                 ord_suburbs = real_ord_suburbs
-        #el número de columnas coincide:
+        # el número de columnas coincide:
         if stable_row:
             orphan_stable_subs = self.save_complete_rows(
                 ord_numbers, ord_suburbs)
-            all_orphan_rows["suburbs"]+=orphan_stable_subs
+            all_orphan_rows["suburbs"] += orphan_stable_subs
         else:
-            all_orphan_rows["numbers"]+=ord_numbers
-            all_orphan_rows["suburbs"]+=ord_suburbs
+            all_orphan_rows["numbers"] += ord_numbers
+            all_orphan_rows["suburbs"] += ord_suburbs
             if final_compr:
                 print ord_suburbs
                 self.last_comprob_missings(ord_numbers, ord_suburbs)
@@ -1031,19 +1034,20 @@ class PPImage(models.Model):
         print u"A CONTINUACIÓN, LA LISTA DE LOS SUBS FALTANTES:"
         print u"0 --> Ninguno coincide"
         missings_subs_last = Suburb.objects.filter(
-                    townhall=self.public_account.townhall,
-                    finalproject__period_pp=self.public_account.period_pp,
-                    finalproject__image__isnull=True).order_by('short_name')
+            townhall=self.public_account.townhall,
+            finalproject__period_pp=self.public_account.period_pp,
+            finalproject__image__isnull=True).order_by('short_name')
         for sub in missings_subs_last:
-            print u"%s --> %s"%(sub.id, sub.short_name)
+            print u"%s --> %s" % (sub.id, sub.short_name)
 
-        missing_rows_idxs = [idx for idx, x in enumerate(ord_suburbs) if not x["suburb_id"]]
+        missing_rows_idxs = [idx for idx, x in enumerate(ord_suburbs)
+                             if not x["suburb_id"]]
         print u"---------------------------------"
         print u"ESTAS SON LAS COLUMNAS POSIBLES:"
         for miss_idx in missing_rows_idxs:
-            print "%s --> %s"%(miss_idx+1, ord_suburbs[miss_idx]['curr'])
+            print "%s --> %s" % (miss_idx + 1, ord_suburbs[miss_idx]['curr'])
             try:
-                print "   COMB| %s"%(ord_suburbs[miss_idx]['comb'])
+                print "   COMB| %s" % (ord_suburbs[miss_idx]['comb'])
             except Exception as e:
                 pass
 
@@ -1060,25 +1064,25 @@ class PPImage(models.Model):
                 else:
                     sub_id = saveFinalProjSuburb(answer_1, self, -1)
                     if (sub_id):
-                        ord_suburbs[answer_2-1]["suburb_id"] = sub_id
+                        ord_suburbs[answer_2 - 1]["suburb_id"] = sub_id
                         has_new_data = True
                     else:
                         print u"!!NO ECONTRAMOS LO QUE DESEABAS!!"
                     continue
         if has_new_data:
-            for_not_error = {"suburbs":[], "numbers":[]}
-            self.comprobate_stability(for_not_error, ord_numbers, 
-                ord_suburbs, False, True)
+            for_not_error = {"suburbs": [], "numbers": []}
+            self.comprobate_stability(for_not_error, ord_numbers,
+                                      ord_suburbs, False, True)
 
     def save_complete_rows(self, ordered_numbers, ordered_suburbs):
         from pprint import pprint
         from project.models import FinalProject
-        #LUCIAN: Estoy imprimiendo esto para ayudar a las pruebas
-        #pprint(ordered_numbers)
-        #pprint(ordered_suburbs)
-        #aquí vas a tomar, en el orden en el que están y los vas a insertar
+        # LUCIAN: Estoy imprimiendo esto para ayudar a las pruebas
+        # pprint(ordered_numbers)
+        # pprint(ordered_suburbs)
+        # aquí vas a tomar, en el orden en el que están y los vas a insertar
         is_complete = True
-        orphan_rows=[]
+        orphan_rows = []
         has_numbers = len(ordered_numbers)
         base_for_enum = ordered_numbers if has_numbers else ordered_suburbs
 
@@ -1088,7 +1092,7 @@ class PPImage(models.Model):
                 ordered_suburbs[idx]["number_data"] = column_num
             suburb_id = sub_row.get("suburb_id")
             if suburb_id:
-                if type(suburb_id) == int:
+                if isinstance(suburb_id, int):
                     final_proj = FinalProject.objects.filter(
                         suburb__id=suburb_id,
                         period_pp=self.public_account.period_pp).first()
@@ -1096,8 +1100,10 @@ class PPImage(models.Model):
                         self.set_values_final_proj(final_proj, sub_row)
                 else:
                     print "!!!!!no es de tipo int (save_complete_rows)"
-                    set_new_error(self,
-                        u"guardamos el sub_id como '%s' (no numérico)"%suburb_id)
+                    set_new_error(
+                        self,
+                        u"guardamos el sub_id como '%s' (no numérico)"
+                        % suburb_id)
                     final_proj = False
 
             else:
@@ -1120,11 +1126,11 @@ class PPImage(models.Model):
 
         self.save()
 
-        #pprint(orphan_rows)
+        # pprint(orphan_rows)
         return orphan_rows
 
     def __unicode__(self):
-        return u"%s %s"%(self.public_account, self.path)
+        return u"%s %s" % (self.public_account, self.path)
 
     def set_values_final_proj(self, final_proj, sub_row):
         import json
@@ -1136,13 +1142,13 @@ class PPImage(models.Model):
                     setattr(final_proj, ammount, curr_amm.get("final_value"))
                     final_proj.inserted_data = True
                 else:
-                    set_new_error(final_proj, u"%s >> formato incorrecto: %s"%(
-                                    ammount, curr_amm.get("raw_unity")))
+                    set_new_error(final_proj, u"%s >> formato incorrecto: %s" % (
+                        ammount, curr_amm.get("raw_unity")))
             else:
                 set_new_error(final_proj,
-                        u"%s >> No tiene ningún valor "%ammount)
+                              u"%s >> No tiene ningún valor " % ammount)
 
-            final_proj.image=self 
+            final_proj.image = self
         final_proj.save()
 
 
@@ -1175,26 +1181,28 @@ def similar_content(sub_name, row):
 
 
 def formatter_orphan(all_images, all_orphan_rows):
-    new_orphan_rows = {"suburbs":[], "numbers":[]}
-    #print all_orphan_rows
+    new_orphan_rows = {"suburbs": [], "numbers": []}
+    # print all_orphan_rows
     for image in all_images:
-        current_suburbs = [x for x in all_orphan_rows["suburbs"] if x["image_id"] == image.id]
-        current_numbers = [x for x in all_orphan_rows["numbers"] if x["image_id"] == image.id]
+        current_suburbs = [x for x in all_orphan_rows[
+            "suburbs"] if x["image_id"] == image.id]
+        current_numbers = [x for x in all_orphan_rows[
+            "numbers"] if x["image_id"] == image.id]
         print "--------------------------"
-        #print current_numbers
-        #print current_suburbs
-        #signfica que no coincidieron las columnas de ambos recortes:
+        # print current_numbers
+        # print current_suburbs
+        # signfica que no coincidieron las columnas de ambos recortes:
         if len(current_numbers):
             print u"sí hay numbers"
             print image.path
-            new_orphan_rows = image.comprobate_stability(new_orphan_rows, 
-                                    current_numbers, current_suburbs, True)
+            new_orphan_rows = image.comprobate_stability(
+                new_orphan_rows, current_numbers, current_suburbs, True)
         else:
             print u"no hay numbers"
             print image.path
-            orphan_stable_subs = image.save_complete_rows(current_numbers,
-                                                             current_suburbs)
-            new_orphan_rows["suburbs"]+=orphan_stable_subs
+            orphan_stable_subs = image.save_complete_rows(
+                current_numbers, current_suburbs)
+            new_orphan_rows["suburbs"] += orphan_stable_subs
     return new_orphan_rows
 
 
@@ -1202,45 +1210,50 @@ def flexibleMatchSuburb(orphan_subs, pa):
     from scripts.data_cleaner import similar, saveFinalProjSuburb
     from pprint import pprint
     print u"------------------------------------"
-    #print orphan_subs
-    missing_row_idxs = [idx for idx, x in enumerate(orphan_subs) if not x["suburb_id"]]
-    missings_subs = Suburb.objects.filter(townhall=pa.townhall,
-                finalproject__period_pp=pa.period_pp,
-                finalproject__image__isnull=True)
+    # print orphan_subs
+    missing_row_idxs = [idx for idx, x in enumerate(
+        orphan_subs) if not x["suburb_id"]]
+    missings_subs = Suburb.objects.filter(
+        townhall=pa.townhall,
+        finalproject__period_pp=pa.period_pp,
+        finalproject__image__isnull=True)
     for sub in missings_subs:
         max_conc = 0
         final_row_idx = -1
         for row_idx in missing_row_idxs:
             if orphan_subs[row_idx]["invalid"]:
                 continue
-            may, concordance = similar_content(sub.short_name, orphan_subs[row_idx])
-            #print "%s -- %s"%(may, concordance)
+            may, concordance = similar_content(
+                sub.short_name, orphan_subs[row_idx])
+            # print "%s -- %s"%(may, concordance)
             if concordance > 0.8 and concordance > max_conc:
                 final_row_idx = row_idx
                 may_type = may
                 #comb_bigger = may == 'comb'
                 #triple_bigger = may == 'triple'
-                max_conc = concordance 
+                max_conc = concordance
         if final_row_idx > -1:
-            #print final_row_idx
+            # print final_row_idx
             sel_row = orphan_subs[final_row_idx]
             image_id = sel_row["image_id"]
             image = PPImage.objects.get(id=image_id)
             sub_id = saveFinalProjSuburb(sub.id, image, max_conc)
-            #print "-------------"
-            #print sub_id
+            # print "-------------"
+            # print sub_id
             if sub_id:
                 orphan_subs[final_row_idx]["suburb_id"] = sub.id
                 orphan_subs[final_row_idx]["concordance"] = max_conc
                 orphan_subs[final_row_idx]["type_comb"] = may_type
                 if may_type != 'curr':
-                    orphan_subs = set_values_combs(orphan_subs, sel_row, 
-                        image, may_type)
+                    orphan_subs = set_values_combs(
+                        orphan_subs, sel_row, image, may_type)
             else:
-                set_new_error(image,
-                    "No se encontró el sub %s que ya habíamos seteado"%sub.id)
-        #else:
-            #print sub.short_name
+                set_new_error(
+                    image,
+                    "No se encontró el sub %s que ya habíamos seteado"
+                    % sub.id)
+        # else:
+            # print sub.short_name
     return orphan_subs
 
 
@@ -1250,37 +1263,37 @@ def set_values_combs(orphan_subs, sel_row, image, may_type):
     for next_req in all_next:
         try:
             id_next = [idx for idx, x in enumerate(orphan_subs)
-                        if x.get("image_id") == image.id and
-                            x.get("seq") == sel_row.get("seq")+next_req]
+                       if x.get("image_id") == image.id and
+                       x.get("seq") == sel_row.get("seq") + next_req]
             if len(id_next):
                 orphan_subs[id_next[0]]["invalid"] = True
             else:
-                #print "No existieron coincidencias..."
+                # print "No existieron coincidencias..."
                 pass
         except Exception as e:
-            set_new_error(image,
-                "No se encontró el seq %s para ponerlo como ínválido")
+            set_new_error(
+                image, u"No se encontró el seq %s para ponerlo como ínválido")
             print e
     return orphan_subs
 
 
 def get_lines_in_block(block):
-    lines=[]
-    line=[]
+    lines = []
+    line = []
     for paragraph in block.get("block", {}).get("paragraphs", []):
         for word in paragraph.get("words", []):
-            vertices=word.get("vertices")
+            vertices = word.get("vertices")
             line.append(word)
-            detected_break=word.get("detected_break")
+            detected_break = word.get("detected_break")
             if detected_break in [3, 4, 5]:
-                full_line=u" ".join([w.get("word") for w in line])
+                full_line = u" ".join([w.get("word") for w in line])
                 """
                 se espera que sea una sola linea, por lo que sus vertices
                 deverian ser  los 0 y 3 del primer bloque y 1 y2 del
                 ultimo  bloque
                 """
-                first_vertices=line[0].get("vertices")
-                final_vertices=[
+                first_vertices = line[0].get("vertices")
+                final_vertices = [
                     first_vertices[0],
                     vertices[1],
                     vertices[2],
@@ -1293,11 +1306,12 @@ def get_lines_in_block(block):
                     "detected_break": detected_break,
                     "vertices": final_vertices
                 })
-                line=[]
+                line = []
     return lines
 
+
 def content_in_limits(line, left, right):
-    line_content=[]
+    line_content = []
     if not line:
         return False
     for word in line.get("words"):
@@ -1310,30 +1324,30 @@ def content_in_limits(line, left, right):
             line_content.append(word)
             continue
 
-        full=x_right-x_left
+        full = x_right - x_left
         if (x_left >= left and x_left <= right):
-            #porcion izquierda
-            fraccion=right-x_left
+            # porcion izquierda
+            fraccion = right - x_left
         elif(x_right >= left and x_right <= right):
-            #porcion derecha
-            fraccion=x_right-left
+            # porcion derecha
+            fraccion = x_right - left
         elif left >= x_left and right <= x_right:
             # la palabra atravieza los limites, se deve contemplar?
             line_content.append(word)
             continue
         else:
             continue
-        porcentage=(fraccion*100)/full
-        if porcentage>70:
+        porcentage = (fraccion * 100) / full
+        if porcentage > 70:
             line_content.append(word)
 
     if line_content:
-        full_line=u" ".join([w.get("word") for w in line_content])
-        #usar el detected_break de contenido o de la linea original?
-        detected_break=line.get("words")[-1].get("detected_break")
-        first_vertices=line_content[0].get("vertices")
-        last_vertices=line_content[-1].get("vertices")
-        final_vertices=[
+        full_line = u" ".join([w.get("word") for w in line_content])
+        # usar el detected_break de contenido o de la linea original?
+        detected_break = line.get("words")[-1].get("detected_break")
+        first_vertices = line_content[0].get("vertices")
+        last_vertices = line_content[-1].get("vertices")
+        final_vertices = [
             first_vertices[0],
             last_vertices[1],
             last_vertices[2],
