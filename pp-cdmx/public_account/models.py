@@ -817,7 +817,7 @@ class PPImage(models.Model):
                 reference_column, columns_data_top, columns_data_bot
             )
 
-        elif limit_position == "bot":
+        elif limit_position in ["bot", "bottom"]:
             vertical_limits = self.box_limits_bot(
                 reference_column, columns_data_top, columns_data_bot
             )
