@@ -281,7 +281,7 @@ def get_year_data_v2(mypath, pp_year=2018, th=False):
     all_pdf_files = []
     for f in listdir(mypath):
         full_file_path = "%s%s" % (mypath, f)
-        if isfile(full_file_path) and ("0001.png" in f and "PP-" in f):
+        if isfile(full_file_path) and (".png" in f and "PP-" in f):
             all_pdf_files.append([f, full_file_path])
     print len(all_pdf_files)
     try:

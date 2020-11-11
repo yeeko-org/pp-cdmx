@@ -51,7 +51,9 @@ class PublicAccount(models.Model):
         verbose_name=u"Ejecutado")
 
     vertical_align_ammounts = models.CharField(
-        choices=VERTICAL_ALIGN_AMMOUNTS, max_length=50, blank=True, null=True)
+        choices=VERTICAL_ALIGN_AMMOUNTS,
+        max_length=50,
+        blank=True, null=True)
 
     def __unicode__(self):
         return u"%s -- %s" % (self.period_pp, self.townhall)
@@ -78,9 +80,10 @@ class PublicAccount(models.Model):
                 .update(image=None, similar_suburb_name=None, error_cell="",
                         inserted_data=False, approved=None, modified=None,
                         executed=None, progress=None, variation=None)
-            PPImage.objects.filter(public_account=self).update(status=None,
-                                                               error_cell=None, len_array_numbers=None,
-                                                               data_row_numbers=None, data_row_suburbs=None)
+            PPImage.objects.filter(public_account=self)\
+                .update(status=None,
+                        error_cell=None, len_array_numbers=None,
+                        data_row_numbers=None, data_row_suburbs=None)
             self.error_cell = ""
             self.status = None
             self.save()
@@ -137,8 +140,8 @@ class PublicAccount(models.Model):
                     complete_row["seq"] = idx
                     complete_row["image_id"] = image.id
                     ord_numbers.append(complete_row)
-                all_orphan_rows = image.comprobate_stability(all_orphan_rows,
-                                                             ord_numbers, ord_suburbs)
+                all_orphan_rows = image.comprobate_stability(
+                    all_orphan_rows, ord_numbers, ord_suburbs)
             else:
                 print "inestable_numbers"
                 image.status = "inestable_numbers"
@@ -169,7 +172,8 @@ class PublicAccount(models.Model):
                 orphan_subs = all_orphan_rows["suburbs"]
                 new_orphan_subs = flexibleMatchSuburb(orphan_subs, self)
                 all_orphan_rows["suburbs"] = new_orphan_subs
-                new_orphan_rows = formatter_orphan(all_images, all_orphan_rows)
+                new_orphan_rows = formatter_orphan(
+                    all_images, all_orphan_rows)
                 len_new_orphan = len(new_orphan_rows)
 
             missings_subs = Suburb.objects.filter(
@@ -178,9 +182,9 @@ class PublicAccount(models.Model):
                 finalproject__image__isnull=True)
 
             incomp_images = PPImage.objects.filter(public_account=self)\
-                .exclude(status='completed')
+                .exclude(status="completed")
 
-            self.status = "incompleted" if incomp_images.count() else 'completed'
+            self.status = "incompleted" if incomp_images.count() else "completed"
 
             if missings_subs.count():
                 set_new_error(self, 'Faltan las siguientes Colonias:')
@@ -214,10 +218,19 @@ class PPImage(models.Model):
     status = models.CharField(
         blank=True, null=True, max_length=80, default=u"uncleaned")
 
+    def get_first_image(self):
+        if "0001" in self.path:
+            return self
+        else:
+            return PPImage.objects.filter(
+                public_account=self.public_account,
+                path__icontains="0001",
+            ).first()
+
     def get_data_full_image(self):
         self.find_reference_blocks()
-        self.calculate_column_boxs()
         self.calculate_columns_bot()
+        self.calculate_column_boxs()
         self.get_data_from_columns()
         self.cleand_columns_numbers()
 
@@ -234,7 +247,7 @@ class PPImage(models.Model):
                 if lines:
                     for line in complete_w.split("\n"):
                         similar_value = similar(text.lower(), line.lower())
-                        if similar_value > 0.5:
+                        if similar_value > 0.7:
                             opcion.append(
                                 {
                                     "block": block,
@@ -244,7 +257,7 @@ class PPImage(models.Model):
 
                 else:
                     similar_value = similar(text.lower(), complete_w.lower())
-                if similar_value > 0.5:
+                if similar_value > 0.7:
                     opcion.append(
                         {
                             "block": block,
@@ -299,6 +312,19 @@ class PPImage(models.Model):
                 "similar_value": similar_value
             }
 
+    def find_max_left(self, top=0, bot=1750):
+        vision_data = self.get_vision_data().get("full", {})
+        left = 300
+
+        for block in vision_data:
+            vertices = block.get("vertices")
+            if vertices[0].get("y") < top or vertices[2].get("y") > bot:
+                continue
+            block_left = vertices[0].get("x")
+            if block_left < left:
+                left = block_left
+        return left
+
     def find_reference_blocks(self):
         self.find_block_logo()
         self.find_block_unidad()
@@ -308,37 +334,19 @@ class PPImage(models.Model):
         self.find_headers()
 
     def find_block_logo(self):
-        vision_data = self.get_vision_data().get("full", {})
-        first_opcion = False
-        for block in vision_data:
-            complete_w = block.get("w", "")
-            if u"CIUDAD DE MÉXICO" == complete_w.strip():
-                print "bloque exacto"
-                print complete_w
-                first_opcion = block
-                break
+        block_logo = self.find_block(
+            "gobierno de la ciudad de mexico")
 
-            elif u"CIUDAD DE MÉXICO" in complete_w:
-                if "GOBIERNO DE LA" in complete_w:
-                    print "se encontro con gobierno de la ciudad de mexico"
-                    print complete_w
-                    first_opcion = block
-                    break
-
-            elif u"CIUDAD DE MEXICO" in complete_w:
-                print "se encontro sin acento"
-                print complete_w
-                if u"CUENAT PUBLICA" in complete_w:
-                    continue
-                if not first_opcion:
-                    first_opcion = block
-        if first_opcion:
-            vertices = first_opcion.get("vertices")
+        if not block_logo:
+            block_logo = self.find_block(
+                "ciudad de mexico")
+        if block_logo:
+            vertices = block_logo.get("vertices")
             data = self.get_json_variables()
             #data["logo"] = first_opcion
 
             data["logo_left"] = vertices[0].get("x")
-            data["logo_bottom"] = vertices[3].get("y")
+            data["logo_bot"] = vertices[3].get("y")
             self.json_variables = json.dumps(data)
             self.save()
         else:
@@ -351,7 +359,7 @@ class PPImage(models.Model):
             # considerar otras medidas como variantes
             return
         data = self.get_json_variables()
-        #data["block_unidad"] = block_unidad
+        data["unidad_bot"] = block_unidad.get("vertices")[3].get("y")
         data["data_left"] = block_unidad.get("vertices")[0].get("x")
         self.json_variables = json.dumps(data)
         self.save()
@@ -402,7 +410,7 @@ class PPImage(models.Model):
 
     def find_headers(self):
         import re
-        colina = self.find_block(u"colonia o pueblo originario")
+        colonia = self.find_block(u"colonia o pueblo originario")
         proyecto = self.find_block(u"proyecto")
         descripcion = self.find_block(u"descripción")
         avance = self.find_block(u"avance del proyecto")
@@ -458,7 +466,7 @@ class PPImage(models.Model):
 
         data = self.get_json_variables()
         data["columns_heades"] = [
-            colina,
+            colonia,
             proyecto,
             descripcion,
             avance,
@@ -469,7 +477,7 @@ class PPImage(models.Model):
         ]
 
         # {
-        #     "colina": colina,
+        #     "colonia": colonia,
         #     "proyecto": proyecto,
         #     "descripcion": descripcion,
         #     "avance": avance,
@@ -483,16 +491,105 @@ class PPImage(models.Model):
         self.save()
 
     def calculate_column_boxs(self):
-        columns_heades = self.get_json_variables().get("columns_heades", [])
-        data_left = self.get_json_variables().get("data_left")
+        data = self.get_json_variables()
+        columns_heades = data.get("columns_heades", [])
+        data_left = data.get("data_left")
+
         columns_top = 0
-        if not data_left:
+        if data.get("logo_bot"):
+            columns_top = data.get("logo_bot")
+        if data.get("unidad_bot"):
+            columns_top = data.get("unidad_bot")
+
+        print columns_heades
+        if all([not header for header in columns_heades]):
+            print "no se encontraron las cabezeras"
+            """
+            no tiene cabezeras, se estima que tampoco tendra unidad, asi que
+            se tendra que calcular los margnes apartir de los margenes
+            del first_image 0001
+            """
+            first_image = self.get_first_image()
+            first_image_data = first_image.get_json_variables()
+            first_logo_left = first_image_data.get("logo_left")
+            first_title_rigth = first_image_data.get("title_rigth")
+
+            logo_left = data.get("logo_left")
+            title_rigth = data.get("title_rigth")
+            columns_bot = data.get("columns_bot")
+
+            print "----------------"
+            print first_image
+            print
+            print first_title_rigth
+            print first_logo_left
+            full_first = first_title_rigth - first_logo_left
+            print full_first
+            print
+            print title_rigth
+            print logo_left
+            full = title_rigth - logo_left
+            dimension_percentage = float(full) / float(full_first)
+            print full
+            print dimension_percentage
+            print
+
+            first_headers = first_image_data.get("columns_heades", [])
+
+            data_left = self.find_max_left(columns_top, columns_bot)
+
+            first_data_left = first_image_data.get("data_left")
+            if not first_data_left:
+                print "No se tiene calculado el data_left en 0001"
+                return
+
+            desfase = first_data_left - int(
+                float(data_left) / dimension_percentage)
+            columns_heades = []
+            for ref_header in first_headers:
+                ref_vertices = ref_header.get("vertices")
+
+                x_left = int((ref_vertices[0].get("x") - desfase) *
+                             dimension_percentage)
+                x_right = int((ref_vertices[1].get("x") - desfase) *
+                             dimension_percentage)
+
+                print x_left
+                print x_right
+                columns_heades.append(
+                    {"vertices": [
+                        {"x": x_left},
+                        {"x": x_right},
+                        {"x": x_right}]}
+                )
+
+        elif not data_left:
             print "No se tiene calculado el data_left"
-            return
-        elif not isinstance(columns_heades, list):
-            print "se esperava que columns_heades fuese lista"
-            return
-        elif not len(columns_heades) == 8:
+            print "calculando data_left con los datos de first_image 0001"
+
+            if columns_heades and all(columns_heades):
+                first_image = self.get_first_image()
+                first_image_data = first_image.get_json_variables()
+                first_data_left = first_image_data.get("data_left")
+                if not first_data_left:
+                    print "No se tiene calculado el data_left en 0001"
+                    return
+                first_logo_left = first_image_data.get("logo_left")
+                first_title_rigth = first_image_data.get("title_rigth")
+                logo_left = data.get("logo_left")
+                title_rigth = data.get("title_rigth")
+
+                full_first = first_title_rigth - first_logo_left
+                full = title_rigth - logo_left
+                dimension_percentage = float(full) / float(full_first)
+
+                data_left = logo_left - int(
+                    (first_logo_left - first_data_left) * dimension_percentage)
+            else:
+                print "se esperava en columns_heades una lista llena"
+                return
+
+        if not len(columns_heades) == 8:
             print u"se esperava una lista de 8 elementos"
             print u"actualemnte tiene: %s" % len(columns_heades)
             return
@@ -518,16 +615,16 @@ class PPImage(models.Model):
             })
 
             data_left = right_data
+            if len(vertices)>2:
+                header_bot = vertices[2].get("y")
+                if header_bot > columns_top:
+                    columns_top = header_bot
 
-            header_bot = vertices[2].get("y")
-            if header_bot > columns_top:
-                columns_top = header_bot
-
-        data = self.get_json_variables()
         data["columns_boxs"] = columns_boxs
         data["columns_top"] = columns_top
         self.json_variables = json.dumps(data)
         self.save()
+        print columns_boxs
 
     def calculate_columns_bot(self):
         # alto maximo del archivo entre 1700 y 1750
@@ -620,6 +717,8 @@ class PPImage(models.Model):
         # eliminacion de el primer dato si es un numero entre parentesis
 
         for column_data in columns_data:
+            if not column_data:
+                continue
             first_line = column_data[0].get("w")
             x = re.search(r'^\( *\d *\)\n?', first_line)
             if x:
@@ -696,6 +795,9 @@ class PPImage(models.Model):
 
     def get_table_data(self, limit_position="top"):
         data = self.get_json_variables()
+        if not all(data["columns_data"]):
+            print "se esperava 8 columnas, todas con datos"
+            return
         best_column_index = data.get(
             "best_column_index", self.select_best_column_index())
         columns_data_top = data.get(
