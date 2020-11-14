@@ -232,7 +232,7 @@ class PPImage(models.Model):
         self.calculate_columns_bot()
         self.calculate_column_boxs()
         self.get_data_from_columns()
-        self.cleand_columns_numbers()
+        #self.cleand_columns_numbers()
 
     def find_block(self, text=False, regex=False, full_obj=False, lines=False):
         from scripts.data_cleaner import similar
@@ -291,13 +291,9 @@ class PPImage(models.Model):
             return e['similar_value']
         opcion.sort(key=block_value)
 
-        print text
         for o in opcion:
             w = o.get("block").get("w")
             value = o.get("similar_value")
-            print w
-            print value
-            print
 
         best_opcion = opcion[-1]
         block = best_opcion.get("block")
@@ -354,7 +350,11 @@ class PPImage(models.Model):
 
     def find_block_unidad(self):
         block_unidad = self.find_block(
-            "unidad responsable del gasto")
+            u"unidad responsable del gasto: %s"%
+            self.public_account.townhall.name )
+        if not block_unidad:
+            block_unidad = self.find_block(
+                u"unidad responsable del gasto")
         if not block_unidad:
             # considerar otras medidas como variantes
             return
@@ -739,29 +739,86 @@ class PPImage(models.Model):
         un sistema simple de seleccion de la mejor columna
     -----------------------------------------------------------------------"""
 
-    def select_best_column_index(self):
+    def calculate_reference_column(self, columns_data_top, columns_data_bot):
+        """
+        nuevo enfoque, usando todos los numero disponibles dentro de los
+        limites columns_data_top y columns_data_bot con magen de error de 20px
+        se unificaran todos los bloques de numeros omitiendo los que se
+        traslapen.
+
+        en un ambiente optimo, la primera columna llenara todos los huecos y 
+        las demas columnas se omitiran por traslape, pero si se tiene perdida
+        de datos, las filas que falten se llenaran con las demas columnas,
+        cuando no se encuentre traslape.
+        """
+        columns_data_top -=20
+        columns_data_bot +=20
         data = self.get_json_variables()
         columns_data = data["columns_data"]
-        columns_counts = {}
-
+        reference_column = []
         for index in range(3, 8):
-            column_leng = len(columns_data[index])
-            if column_leng in columns_counts:
-                columns_counts[column_leng]["count"] += 1
-                columns_counts[column_leng]["columns"].append(index)
-            else:
-                columns_counts[column_leng] = {
-                    "count": 1,
-                    "columns": [index]
-                }
-        normal_counts = sorted([key for key, value in columns_counts.items()])
-        normal_count = normal_counts[0]
-        best_column_index = columns_counts[normal_count]["columns"][0]
+            for block in columns_data[index]:
 
-        data["best_column_index"] = best_column_index
+                block_vertices = block.get("vertices")
+                b_top = block_vertices[0].get("y")
+                b_bot = block_vertices[2].get("y")
+                if not (b_top>columns_data_top and b_bot<columns_data_bot):
+                    continue
+
+                overlap=False
+                for ref_block in reference_column:
+                    # revisar si se traslapa con el presente, si es asi, continuar
+                    ref_block_vertices = ref_block.get("vertices")
+                    rb_top = ref_block_vertices[0].get("y")
+                    rb_bot = ref_block_vertices[2].get("y")
+
+                    over_ref = b_top< rb_top and b_bot<rb_top
+                    below_ref = b_top> rb_bot and b_bot>rb_bot
+
+                    if not (over_ref or below_ref):
+                        overlap=True
+                        break
+
+                if not overlap:
+                    reference_column.append(block)
+
+        def block_vertice_y(block):
+            return block["vertices"][0].get("y")
+
+        reference_column.sort(key=block_vertice_y)
+
+        data["reference_column"] = reference_column
         self.json_variables = json.dumps(data)
         self.save()
-        return best_column_index
+        return reference_column
+
+
+
+        # columns_counts = {}
+
+        # for index in range(3, 8):
+        #     print index
+        #     column_leng = len(columns_data[index])
+        #     print column_leng
+        #     if column_leng in columns_counts:
+        #         columns_counts[column_leng]["count"] += 1
+        #         columns_counts[column_leng]["columns"].append(index)
+        #     else:
+        #         columns_counts[column_leng] = {
+        #             "count": 1,
+        #             "columns": [index]
+        #         }
+        #     print columns_counts
+        #     print
+        # normal_counts = sorted([key for key, value in columns_counts.items()])
+        # print normal_counts
+        # normal_count = normal_counts[0]
+        # best_column_index = columns_counts[normal_count]["columns"][0]
+
+        # data["best_column_index"] = best_column_index
+        # self.json_variables = json.dumps(data)
+        # self.save()
+        # return best_column_index
 
     def calculate_columns_data_top(self):
         data = self.get_json_variables()
@@ -798,14 +855,13 @@ class PPImage(models.Model):
         if not all(data["columns_data"]):
             print "se esperava 8 columnas, todas con datos"
             return
-        best_column_index = data.get(
-            "best_column_index", self.select_best_column_index())
         columns_data_top = data.get(
             "columns_data_top", self.calculate_columns_data_top())
         columns_data_bot = data.get(
             "columns_data_bot", self.calculate_columns_data_bot())
-
-        reference_column = data["columns_data"][best_column_index]
+        reference_column = data.get(
+            "reference_column", self.calculate_reference_column(
+                columns_data_top, columns_data_bot))
 
         if limit_position == "top":
             vertical_limits = self.box_limits_top(
@@ -859,8 +915,8 @@ class PPImage(models.Model):
                         continue
                     else:
                         continue
-                    porcentage = (fraccion * 100) / full
-                    if porcentage > 60:
+                    porcentaje = (fraccion * 100) / full
+                    if porcentaje > 60:
                         row_blocks.append(block)
 
                 line_text = u" ".join(
@@ -877,7 +933,7 @@ class PPImage(models.Model):
         self.save()
 
     def box_limits_top(
-            self, reference_column, columns_data_top, columns_data_bot):
+        self, reference_column, columns_data_top, columns_data_bot):
 
         vertical_limits = []
         reference_row_top = False
@@ -902,7 +958,7 @@ class PPImage(models.Model):
         return vertical_limits
 
     def box_limits_center(
-            self, reference_column, columns_data_top, columns_data_bot):
+        self, reference_column, columns_data_top, columns_data_bot):
 
         vertical_limits = []
         linea_media = 4
@@ -968,7 +1024,7 @@ class PPImage(models.Model):
         return vertical_limits
 
     def box_limits_bot(
-            self, reference_column, columns_data_top, columns_data_bot):
+        self, reference_column, columns_data_top, columns_data_bot):
 
         vertical_limits = []
         reference_row_top = columns_data_top
@@ -1002,7 +1058,7 @@ class PPImage(models.Model):
             if not (y_top >= top and y_bot <= bot):
                 # fuera de los limites alto y bajo
 
-                # comprovar el porcentage interno antes de ignorarlo
+                # comprovar el porcentaje interno antes de ignorarlo
                 continue
 
             x_left = vertices[0].get("x")
@@ -1100,8 +1156,8 @@ class PPImage(models.Model):
         return column_values if is_sub else (column_values, len_array)
 
     def comprobate_stability(
-            self, all_orphan_rows, ord_numbers,
-            ord_suburbs, final_compr=False, from_last=False):
+        self, all_orphan_rows, ord_numbers,
+        ord_suburbs, final_compr=False, from_last=False):
 
         stable_row = len(ord_numbers) == len(ord_suburbs)
         if not stable_row:
@@ -1439,8 +1495,8 @@ def content_in_limits(line, left, right):
             continue
         else:
             continue
-        porcentage = (fraccion * 100) / full
-        if porcentage > 70:
+        porcentaje = (fraccion * 100) / full
+        if porcentaje > 70:
             line_content.append(word)
 
     if line_content:

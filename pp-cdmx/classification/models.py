@@ -32,6 +32,8 @@ class Anomaly(models.Model):
         max_length=30, blank=True, null=True,
         verbose_name=u"Color")
 
+    is_public = models.BooleanField(default=True)
+
     def __unicode__(self):
         return self.name
 
