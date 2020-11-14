@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 from vision.get_columns import extractDataForLens
 
-path = u'G:\\Mi unidad\\YEEKO\\Clientes\\Ollin-Presupuesto participativo\\Bases de datos\\Cuenta Pública\\init\\p'
+path = u'G:\\Mi unidad\\YEEKO\\Clientes\\Ollin-PP\\Bases de datos\\Cuenta Pública\\rules\\'
 
-from vision.get_columns import extractDataForLens
+from vision.get_columns import extractDataForLens, get_year_data_v2
 
 
 
-def execute_townhall(th , need_lens=False, reset_images=False):
+def execute_townhall(th, need_lens=False, reset_images=False):
     from public_account.models import PPImage, PublicAccount
     from project.models import FinalProject
     if need_lens:
@@ -15,6 +15,26 @@ def execute_townhall(th , need_lens=False, reset_images=False):
     public_account=PublicAccount.objects.filter(townhall__short_name=th).first()
     public_account.column_formatter(need_lens or reset_images)
     print print_results(th)
+
+def execute_townhall2(th, limit_position, need_lens=False, reset_images=False):
+    from public_account.models import PPImage, PublicAccount
+    from project.models import FinalProject
+    if need_lens:
+        get_year_data_v2(path, pp_year= 2018, th=th)
+    #public_account=PublicAccount.objects\
+        #.filter(townhall__short_name=th, period_pp__year=2018)\
+        #.first()
+    images_in_public_account = PPImage.objects\
+        .filter(
+            public_account__townhall__short_name=townhall_short_name,
+            public_account__period_pp__year=period_pp_year
+        )\
+        .order_by("path")
+    for self in images:
+        self.get_data_full_image()
+        self.get_table_data(limit_position=limit_position)
+    ##public_account.column_formatter(need_lens or reset_images)
+    ##print print_results(th)
 
 def print_results(th=None):
     from project.models import FinalProject

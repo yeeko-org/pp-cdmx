@@ -4,14 +4,33 @@ from scripts.exercises  import *
 extract_only_pages("AO", '0002')
 
 
+
+execute_townhall2("AO", 'top', True, True)
+
 #ejecutar una alcadías con reset en True
 from scripts.exercises  import *
 execute_townhall('BJ', False, True)
 
-lst =[10,10,9,9,8]
-max(set(lst), key=lst.count)
+
+from public_account.models import PublicAccount, PPImage
+
+public_account = PublicAccount.objects.get(id=9)
+images_in_public_account = PPImage.objects\
+    .filter(public_account=public_account)\
+    .order_by("path")
+
+limit_position = 'top'
+
+self = images_in_public_account[0]
+self.get_data_full_image()
+self.get_table_data(limit_position=limit_position)
+
+self.
 
 
+for self in images_in_public_account:
+    self.get_data_full_image()
+    self.get_table_data(limit_position=limit_position)
 
 all_ths = ["CUH", "CUJ", "TLP", "VC", "XO", "AO", "IZT", "AZC", "TLH", "MC", "MH", "COY", "GAM", "BJ", "MIL", "IZP"]
 
@@ -29,11 +48,6 @@ print_all_results()
 lens_th('BJ')
 
 lens_th('IZP')
-
-
-
-
-
 
 
 
@@ -62,6 +76,8 @@ from scripts.data_cleaner import buildSuburbComparename
 
 buildSuburbComparename()
 
+lst =[10,10,9,9,8]
+max(set(lst), key=lst.count)
 
 
 
@@ -153,6 +169,20 @@ extractDataForLens(path, th=curr_th)
 
 
 
+
+
+
+
+
+
+
+from scripts.metodo_rules.results_ao_1 import results
+
+for column in results["columns_data"]:
+    #print len(column)
+    print "--------------------"
+    for col in column:
+        print col["w"]
 
 
 

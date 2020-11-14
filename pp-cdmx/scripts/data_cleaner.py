@@ -482,6 +482,8 @@ def calculateNumbers(rows, is_ammount, strict=False):
             if is_ammount and 0<float_value<1000 or float_value > 10000000:
                 column_values.remove(new_value)
                 continue
+            if not is_ammount and float_value > 2:
+                float_value = float_value/float(100)
             new_value["final_value"] = float_value
         elif strict:
             column_values.remove(new_value)
