@@ -10,6 +10,8 @@ from classification.models import CategoryIECM, Anomaly
 from django.contrib.auth.models import User
 from public_account.models import PPImage
 
+from public_account.models import PublicAccount
+
 
 class Project(models.Model):
     suburb = models.ForeignKey(Suburb, verbose_name=u"Colonia")
@@ -131,7 +133,8 @@ class FinalProject(models.Model):
 
 class AnomalyFinalProject(models.Model):
     anomaly = models.ForeignKey(Anomaly)
-    final_project = models.ForeignKey(FinalProject)
+    final_project = models.ForeignKey(FinalProject, blank=True, null=True)
+    public_account = models.ForeignKey(PublicAccount, blank=True, null=True)
 
     def __unicode__(self):
         return u"%s -%s" % (self.final_project, self.anomaly)

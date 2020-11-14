@@ -40,6 +40,8 @@ class FinalProjectSerializer(serializers.ModelSerializer):
 
 
 class FinalProjectSmallSerializer(serializers.ModelSerializer):
+    category_iecm = serializers.ReadOnlyField(
+        source="project.category_iecm_id", default=None)
 
     class Meta:
         model = FinalProject
@@ -50,5 +52,6 @@ class FinalProjectSmallSerializer(serializers.ModelSerializer):
             "assigned",
             "executed",
             "progress",
+            "category_iecm",
         ]
         # depth = 2
