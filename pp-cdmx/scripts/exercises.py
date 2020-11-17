@@ -33,7 +33,7 @@ def execute_townhall2(th, limit_position, need_lens=False, reset_images=False):
     for self in images:
         self.get_data_full_image()
         self.get_table_data(limit_position=limit_position)
-    ##public_account.column_formatter(need_lens or reset_images)
+    public_account.column_formatter_v2(need_lens or reset_images)
     ##print print_results(th)
 
 def print_results(th=None):

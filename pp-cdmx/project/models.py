@@ -50,6 +50,10 @@ class FinalProject(models.Model):
         verbose_name=u"Proyecto")
     total_votes = models.IntegerField(
         blank=True, null=True, verbose_name=u"Total de Votos")
+    final_name = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=u"Nombre Final")
     description_cp = models.TextField(
         blank=True, null=True, verbose_name=u"Descripcion CP")
     project_cp = models.CharField(
@@ -57,10 +61,6 @@ class FinalProject(models.Model):
         blank=True,
         null=True,
         verbose_name=u"Proyecto CP")
-    final_name = models.TextField(
-        blank=True,
-        null=True,
-        verbose_name=u"Nombre Final")
     # category_ollin
     # subcategory
 

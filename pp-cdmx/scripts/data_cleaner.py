@@ -405,8 +405,8 @@ def clean_no_numbers(collects):
             except Exception as e:
                 print e
                 continue
-            new_value = re.sub(r'[^0-9\,\.\s\-\%\(\)]', '', new_value)
             #números y letras, no más:
+            new_value = re.sub(r'[^0-9\,\.\s\-\%\(\)]', '', new_value)
             #Limpieza básica de espacios:
             new_value = new_value.strip()
             #Se quitan los espacios alrededor de puntos y comas (siempre a puntos)

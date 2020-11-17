@@ -10,6 +10,56 @@ import json
 
 amm_types = ["progress", "approved", "modified", "executed", "variation"]
 
+column_types = [
+    {
+        "name": "suburb",
+        "title": u"Colonia",
+        "type": "fk"
+    },
+    {
+        "name": "project",
+        "title": u"Proyecto",
+        "field": "final_name",
+        "type": "text"
+    },
+    {
+        "name": "description",
+        "title": u"Descripción",
+        "field": "description_cp",
+        "type": "text"
+    },
+    {
+        "name": "progress",
+        "title": u"Avance",
+        "field": "progress",
+        "type": "number"
+    },
+    {
+        "name": "approved",
+        "title": u"Aprobado",
+        "field": "approved",
+        "type": "ammount"
+    },
+    {
+        "name": "modified",
+        "title": u"Modificado",
+        "field": "modified",
+        "type": "ammount"
+    },
+    {
+        "name": "executed",
+        "title": u"Ejecutado",
+        "field": "executed",
+        "type": "ammount"
+    },
+    {
+        "name": "variation",
+        "title": u"Variación",
+        "field": "variation",
+        "type": "number"
+    },
+]
+        
 
 class PublicAccount(models.Model):
     # original_pdf = models.FileField(
@@ -36,6 +86,9 @@ class PublicAccount(models.Model):
     error_cell = models.TextField(
         blank=True, null=True,
         verbose_name="pila de errores")
+    orphan_rows = models.TextField(
+        blank=True, null=True,
+        verbose_name="Filas no insertadas")
 
     approved = models.DecimalField(
         max_digits=12, decimal_places=2,
@@ -79,7 +132,8 @@ class PublicAccount(models.Model):
                         image__in=all_images)\
                 .update(image=None, similar_suburb_name=None, error_cell="",
                         inserted_data=False, approved=None, modified=None,
-                        executed=None, progress=None, variation=None)
+                        executed=None, progress=None, variation=None, 
+                        variables="")
             PPImage.objects.filter(public_account=self)\
                 .update(status=None,
                         error_cell=None, len_array_numbers=None,
@@ -169,8 +223,7 @@ class PublicAccount(models.Model):
             new_orphan_subs = None
             if len_orphan:
                 print "haremos un match suavizado"
-                orphan_subs = all_orphan_rows["suburbs"]
-                new_orphan_subs = flexibleMatchSuburb(orphan_subs, self)
+                new_orphan_subs = flexibleMatchSuburb(all_orphan_rows, self)
                 all_orphan_rows["suburbs"] = new_orphan_subs
                 new_orphan_rows = formatter_orphan(
                     all_images, all_orphan_rows)
@@ -195,6 +248,187 @@ class PublicAccount(models.Model):
             self.status = "inestable_images"
         self.save()
         return
+
+    def column_formatter_v2(self, reset=False, image_num=None):
+        from project.models import FinalProject
+        from scripts.data_cleaner_v2 import saveFinalProjSuburb_v2
+        import numpy
+        suburbs_dict = []
+        all_images = PPImage.objects.filter(public_account=self)
+        if image_num:
+            all_images = all_images.filter(path__icontains=image_num)
+
+        if reset:
+            FinalProject.objects\
+                .filter(suburb__townhall=self.townhall,
+                        period_pp=self.period_pp,
+                        image__in=all_images)\
+                .update(image=None, similar_suburb_name=None, error_cell="",
+                        inserted_data=False, approved=None, modified=None,
+                        executed=None, progress=None, variation=None)
+            PPImage.objects.filter(public_account=self)\
+                .update(status=None,
+                        error_cell=None, len_array_numbers=None,
+                        data_row_numbers=None, data_row_suburbs=None)
+            self.error_cell = ""
+            self.status = None
+            self.save()
+
+        #Se obtienen los formatos de cada uno de los 
+        
+        variables = self.get_variables()
+
+        special_formats = self.calculate_special_formats(all_images, column_types[:3])
+
+        seq = 1
+        #Una vez obtenido los valores de special_formats, se tratan los datos:
+        for image in all_images:
+            #Intentamos obtener los datos que nos interesan
+            try:
+                table_data = image.get_json_variables()["table_data"]
+            except Exception as e:
+                print e
+                table_data = []
+                pass
+
+            #print image.path
+            #Por cada fila de datos:
+            for row in table_data:
+                seq+=1
+                errors = []
+                #Intentamos obtener de forma simple el id de la colonia.
+                sub_id, normal_name, errors = calculateSuburb_v2(row[0], row[1], image)
+                final_proj = None
+                if sub_id == False:
+                    continue
+                
+                row_data = []
+
+                for idx, col in enumerate(row):
+                    col_ref = column_types[idx]
+                    if idx > 2:
+                        special_format = special_formats[idx-3]
+                        final_value, c_errors = calculateNumber(col, col_ref, special_format)
+                        if len(c_errors):
+                            errors+=c_errors
+                            final_value = None
+                    else:
+                        final_value = col if idx else normal_name
+
+                    #if not final_proj:
+                    row_data.append(final_value)
+                    elif idx and final_value:
+                        final_proj[col_ref["field"]] = final_value
+
+                all_row = {
+                    "seq": seq, 
+                    "data": row_data,
+                    "errors": errors, 
+                    "image": image
+                }
+                new_sub_id = None
+                if sub_id:
+                    new_sub_id, new_errors = saveFinalProjSuburb_v2(sub_id, all_row)
+                    new_errors = 
+                if not new_sub_id:
+                    orphan_rows = self.get_orphan_rows()
+                    orphan_rows.append(row_data)
+                    self.orphan_rows = json.dumps(orphan_rows)
+                    self.save()
+
+        all_orphan_rows = self.get_orphan_rows()
+        if image_num:
+            print u"*******las filas no insertadas:**********"
+            print all_orphan_rows
+   
+        # si existen filas huérfanos:
+        len_orphan = len(all_orphan_rows)
+        new_orphan_rows = []
+        subs_alone = None
+        new_orphan_subs = None
+        if len_orphan:
+            print "haremos un match suavizado"
+            orphan_subs = all_orphan_rows["suburbs"]
+            new_orphan_subs = flexibleMatchSuburb_v2(orphan_subs, self)
+            all_orphan_rows["suburbs"] = new_orphan_subs
+            new_orphan_rows = formatter_orphan(
+                all_images, all_orphan_rows)
+            len_new_orphan = len(new_orphan_rows)
+
+        missings_subs = Suburb.objects.filter(
+            townhall=self.townhall,
+            finalproject__period_pp=self.period_pp,
+            finalproject__image__isnull=True)
+
+        incomp_images = PPImage.objects.filter(public_account=self)\
+            .exclude(status="completed")
+
+        self.status = "incompleted" if incomp_images.count() else "completed"
+
+        if missings_subs.count():
+            set_new_error(self, 'Faltan las siguientes Colonias:')
+        for sub in missings_subs:
+            set_new_error(self, "%s %s" % (sub.cve_col, sub.name))
+
+        self.save()
+        return
+
+    def calculate_special_formats(all_images):
+        columns_nums = column_types[:3]
+        #si ya se había canculado el special_formats, simplemente se obtiene
+        try:
+            return variables["special_formats"]
+        #si no, se calcula:
+        except Exception as e:
+            #Se trabajará solo con las columnas numéricas, que son las últimas 5
+            count_rows = [0, 0, 0, 0, 0]
+            special_format_count = [0, 0, 0, 0, 0]
+            special_formats = []
+            for image in all_images:
+                try:
+                    table_data = image.get_json_variables()["table_data"]
+                except Exception as e:
+                    print e
+                    pass
+                for row in table_data:
+                    #Se trabajarán solo con los últimos tres datos
+                    for idx, col in enumerate(row[:3]):
+                        sum_col = calculateNumber(col, columns_nums[idx], None)
+                        #Solo se sumarán si la función arrojó algún número
+                        if sum_col != None:
+                            special_format_count[idx]+=sum_col
+                            count_rows[idx]+=1
+                #Se puede detarminar una tendencia de tener algún formato especial
+                #si existen al menos 5 datos con formato válido
+                if min(count_rows) > 4 or image_num:
+                    for idx, col in enumerate(columns_nums):
+                        is_special = special_format_count[idx] / float(count_rows[idx]) >= 0.75
+                        special_formats.append(is_special)
+                    break
+            variables["special_formats"] = special_formats
+            self.variables = json.dumps(variables)
+            self.save()
+            return special_formats
+
+
+
+    def get_variables(self):
+        import json
+        try:
+            return json.loads(self.variables)
+        except Exception as e:
+            print("self.variables No JSON object could be decoded, "
+                  "se reiniciara a { }")
+            return {}
+
+    def get_orphan_rows(self):
+        import json
+        try:
+            return json.loads(self.orphan_rows)
+        except Exception as e:
+            print("self.orphan_rows No JSON object could be decoded, "
+                  "se reiniciara a []")
+            return []
 
     class Meta:
         verbose_name = u"Cuenta Publica"
