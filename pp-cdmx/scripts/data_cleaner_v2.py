@@ -152,9 +152,9 @@ def saveFinalProjSuburb_v2(sub_id, row_data, simil=1):
             image__isnull=True)
         final_proy.image = image
         final_proy.similar_suburb_name = simil
-        for idx, value in enumerate(row_data):
+        for idx, value in enumerate(row_data.get("data")):
             if idx:
-                print column_types[idx]["field"]                
+                # print column_types[idx]["field"]                
                 setattr(final_proy, column_types[idx]["field"], value)
         final_proy.save()
         for error in row_data["errors"]:
@@ -240,7 +240,7 @@ def calculateNumber(text, column, has_special_format=None):
         except Exception as e:
             print "error al convertir en calculateNumber en text: \"%s\""%text
             print e
-            float_value=0
+            return None, errors
     #Algunos números que si los obtenemos, significa un problema
     if (is_ammount and 0 < float_value < 1000) or float_value > 10000000:
         errors.append(u"Número inválido en columna %s"%column["title"])
@@ -254,18 +254,18 @@ def flexibleMatchSuburb_v2(orphan_rows, pa):
     from scripts.data_cleaner import similar
     from pprint import pprint
     from difflib import SequenceMatcher
-    print u"------------------------------------"
-    # print orphan_rows
-    new_orphans = []
+    # print u"----------------flexibleMatchSuburb_v2--------------------"
+
     missing_row_idxs = [idx for idx, x in enumerate(orphan_rows)]
     missings_subs = Suburb.objects.filter(
         townhall=pa.townhall,
         finalproject__period_pp=pa.period_pp,
         finalproject__image__isnull=True)
+
     for sub in missings_subs:
         max_conc = 0
         sub_id = None
-        final_row_idx = -1
+        match_row_idx = -1
         for row_idx in missing_row_idxs:
             #if orphan_rows[row_idx]["invalid"]:
                 #continue
@@ -273,21 +273,22 @@ def flexibleMatchSuburb_v2(orphan_rows, pa):
                 orphan_rows[row_idx]["data"][0]).ratio()
             # print "%s -- %s"%(may, concordance)
             if concordance > 0.8 and concordance > max_conc:
-                final_row_idx = row_idx
+                match_row_idx = row_idx
                 max_conc = concordance
-        if final_row_idx > -1:
-            # print final_row_idx
-            sel_row = orphan_rows[final_row_idx]
-            sub_id = saveFinalProjSuburb_v2(sub.id, sel_row, max_conc)
-            missing_row_idxs.remove(row_idx)
+        if match_row_idx > -1:
+            # print match_row_idx
+            match_row = orphan_rows[match_row_idx]
+            sub_id = saveFinalProjSuburb_v2(sub.id, match_row, max_conc)
+            missing_row_idxs.remove(match_row_idx)
             # print "-------------"
             # print sub_id
+
     final_missings_subs = Suburb.objects.filter(
         townhall=pa.townhall,
         finalproject__period_pp=pa.period_pp,
         finalproject__image__isnull=True)
     new_orphans = []
-    if len(final_missings_subs):
+    if final_missings_subs.exists():
         for miss_idx in missing_row_idxs:
             new_orphans.append(orphan_rows[miss_idx])
 
