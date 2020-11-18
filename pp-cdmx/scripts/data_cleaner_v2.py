@@ -143,18 +143,19 @@ def similar(a, b):
 
 
 def saveFinalProjSuburb_v2(sub_id, row_data, simil=1):
-    from public_account.models import column_types
+    from public_account.models import column_types, PPImage
     from classification.models import Anomaly
     from project.models import FinalProject, AnomalyFinalProject
-    image = row_data["image"]
+    image = PPImage.objects.get(id=row_data["image_id"])
     try:
         final_proy = FinalProject.objects.get(suburb__id=sub_id,
             image__isnull=True)
         final_proy.image = image
         final_proy.similar_suburb_name = simil
-        # for idx, value in enumerate(row_data):
-        #     if idx:
-        #         ###final_proy[column_types[idx]["field"]] = value
+        for idx, value in enumerate(row_data):
+            if idx:
+                print column_types[idx]["field"]
+                final_proy[column_types[idx]["field"]] = value
         final_proy.save()
         for error in row_data["errors"]:
             anomaly, created = Anomaly.objects\
@@ -249,13 +250,14 @@ def calculateNumber(text, column, has_special_format=None):
 
 
 
-def flexibleMatchSuburb_v2(orphan_subs, pa):
+def flexibleMatchSuburb_v2(orphan_rows, pa):
     from scripts.data_cleaner import similar
     from pprint import pprint
+    from difflib import SequenceMatcher
     print u"------------------------------------"
-    # print orphan_subs
+    # print orphan_rows
     new_orphans = []
-    missing_row_idxs = [idx for idx, x in enumerate(orphan_subs)]
+    missing_row_idxs = [idx for idx, x in enumerate(orphan_rows)]
     missings_subs = Suburb.objects.filter(
         townhall=pa.townhall,
         finalproject__period_pp=pa.period_pp,
@@ -265,49 +267,33 @@ def flexibleMatchSuburb_v2(orphan_subs, pa):
         sub_id = None
         final_row_idx = -1
         for row_idx in missing_row_idxs:
-            if orphan_subs[row_idx]["invalid"]:
-                continue
+            #if orphan_rows[row_idx]["invalid"]:
+                #continue
             concordance = SequenceMatcher(None, sub.short_name, 
-                orphan_subs[row_idx]["data"][0]).ratio()
+                orphan_rows[row_idx]["data"][0]).ratio()
             # print "%s -- %s"%(may, concordance)
             if concordance > 0.8 and concordance > max_conc:
                 final_row_idx = row_idx
                 max_conc = concordance
         if final_row_idx > -1:
             # print final_row_idx
-            sel_row = orphan_subs[final_row_idx]
+            sel_row = orphan_rows[final_row_idx]
             sub_id = saveFinalProjSuburb_v2(sub.id, sel_row, max_conc)
+            missing_row_idxs.remove(row_idx)
             # print "-------------"
             # print sub_id
-        if not sub_id:
-            new_orphans.append(sel_row)
+    final_missings_subs = Suburb.objects.filter(
+        townhall=pa.townhall,
+        finalproject__period_pp=pa.period_pp,
+        finalproject__image__isnull=True)
+    new_orphans = []
+    if len(final_missings_subs):
+        for miss_idx in missing_row_idxs:
+            new_orphans.append(orphan_rows[miss_idx])
 
     pa.orphan_rows = json.dumps(new_orphans)
     pa.save()
-    return orphan_subs
-
-
-def similar_content_v2(sub_name, row):
-    from difflib import SequenceMatcher
-    SequenceMatcher(None, sub_name, comp["value"]).ratio()
-    comprobs = append_comprob([], row, "curr")
-    if row.get("can_be_comb"):
-        comprobs = append_comprob(comprobs, row, "comb")
-        if row.get("can_be_triple"):
-            comprobs = append_comprob(comprobs, row, "triple")
-    may_name = None
-    max_value = 0
-    for comp in comprobs:
-        curr_max = max(
-            SequenceMatcher(None, sub_name, comp["value"]).ratio(),
-            SequenceMatcher(None, comp["value"], sub_name).ratio())
-        if curr_max > max_value:
-            max_value = curr_max
-            may_name = comp["name"]
-
-    return may_name, max_value
-
-
+    return new_orphans
 
 def set_new_error(model, text_error):
     current_notes = model.error_cell

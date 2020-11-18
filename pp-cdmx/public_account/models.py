@@ -129,8 +129,10 @@ class PublicAccount(models.Model):
 
         PPImage.objects.filter(public_account=self)\
             .update(status=None, error_cell=None, len_array_numbers=None,
-                    data_row_numbers=None, data_row_suburbs=None)
+                    data_row_numbers=None, data_row_suburbs=None, 
+                    json_variables=None)
 
+        self.orphan_rows = None
         self.error_cell = ""
         self.status = None
         self.save()
@@ -276,7 +278,7 @@ class PublicAccount(models.Model):
     def column_formatter_v2(self, reset=False, image_num=None):
         from project.models import FinalProject
         from scripts.data_cleaner_v2 import (
-            saveFinalProjSuburb_v2, calculateSuburb_v2)
+            saveFinalProjSuburb_v2, calculateSuburb_v2, flexibleMatchSuburb_v2)
         import numpy
         suburbs_dict = []
 
@@ -326,22 +328,21 @@ class PublicAccount(models.Model):
 
                     #if not final_proj:
                     row_data.append(final_value)
-                    if idx and final_value:
-                        pass
-                        ###final_proj[col_ref["field"]] = final_value
 
                 all_row = {
                     "seq": seq, 
                     "data": row_data,
                     "errors": errors, 
-                    "image": image
+                    "image_id": image.id
                 }
                 new_sub_id = None
                 if sub_id:
                     new_sub_id, new_errors = saveFinalProjSuburb_v2(sub_id, all_row)
                 if not new_sub_id:
                     orphan_rows = self.get_orphan_rows()
-                    orphan_rows.append(row_data)
+                    print orphan_rows
+                    orphan_rows.append(all_row)
+                    print orphan_rows
                     self.orphan_rows = json.dumps(orphan_rows)
                     self.save()
 
@@ -358,12 +359,8 @@ class PublicAccount(models.Model):
         if len_orphan:
             print "haremos un match suavizado"
             ### inconsistencia de tipos en la logica, no se pudo deducir 
-            # orphan_subs = all_orphan_rows["suburbs"]
-            # new_orphan_subs = flexibleMatchSuburb_v2(orphan_subs, self)
-            # all_orphan_rows["suburbs"] = new_orphan_subs
-            # new_orphan_rows = formatter_orphan(
-            #     all_images, all_orphan_rows)
-            # len_new_orphan = len(new_orphan_rows)
+            new_orphan_rows = flexibleMatchSuburb_v2(all_orphan_rows, self)
+            len_new_orphan = len(new_orphan_rows)
 
         missings_subs = Suburb.objects.filter(
             townhall=self.townhall,
@@ -1264,9 +1261,12 @@ class PPImage(models.Model):
 
     def get_table_data(self, recalculate=False):
         data = self.get_json_variables()
-
-        if "table_data" in data and not recalculate:
-            return data["table_data"]
+        try:
+            return data[u"table_data"]
+        except Exception as e:
+            pass
+        #if "table_data" in data and not recalculate:
+            #return data["table_data"]
 
         self.get_data_full_image()
 

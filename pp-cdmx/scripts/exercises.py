@@ -21,18 +21,17 @@ def execute_townhall2(th, limit_position, need_lens=False, reset_images=False):
     from project.models import FinalProject
     if need_lens:
         get_year_data_v2(path, pp_year= 2018, th=th)
-    #public_account=PublicAccount.objects\
-        #.filter(townhall__short_name=th, period_pp__year=2018)\
-        #.first()
     images_in_public_account = PPImage.objects\
-        .filter(
-            public_account__townhall__short_name=townhall_short_name,
-            public_account__period_pp__year=period_pp_year
-        )\
+        .filter(public_account__townhall__short_name=th,
+                public_account__period_pp__year=2018)\
         .order_by("path")
-    for self in images:
-        self.get_data_full_image()
-        self.get_table_data(limit_position=limit_position)
+    if reset_images:
+        for self in images_in_public_account:
+            self.get_data_full_image()
+            self.get_table_data()
+    public_account=PublicAccount.objects\
+        .filter(townhall__short_name=th, period_pp__year=2018)\
+        .first()
     public_account.column_formatter_v2(need_lens or reset_images)
     ##print print_results(th)
 

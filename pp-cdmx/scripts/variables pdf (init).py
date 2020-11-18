@@ -1,9 +1,10 @@
 from scripts.exercises  import *
 
 
-extract_only_pages("AO", '0002')
+#extract_only_pages("AO", '0002')
 
 
+execute_townhall2("AO", 'top', False, False)
 
 execute_townhall2("AO", 'top', True, True)
 
