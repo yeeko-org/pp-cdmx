@@ -71,7 +71,7 @@ def calculateSuburb_v2(text, maybe_cve, image):
 
     #El extrañísimo (pero siempre es posible) caso de que existan dos 
     # alcaldías distintas en el mismo lugar.
-    elif sub_id and cve and sub_id != cve:
+    if sub_id and cve and sub_id != cve:
         errors.append("Dos claves en el mismo lugar")
         set_new_error(image, "%s row: %s"%(
             u"Se encontraron dos claves en el mismo lugar: ", text))
@@ -152,9 +152,9 @@ def saveFinalProjSuburb_v2(sub_id, row_data, simil=1):
             image__isnull=True)
         final_proy.image = image
         final_proy.similar_suburb_name = simil
-        for idx, value in enumerate(row_data):
-            if idx:
-                final_proy[column_types[idx]["field"]] = value
+        # for idx, value in enumerate(row_data):
+        #     if idx:
+        #         ###final_proy[column_types[idx]["field"]] = value
         final_proy.save()
         for error in row_data["errors"]:
             anomaly, created = Anomaly.objects\
@@ -164,12 +164,13 @@ def saveFinalProjSuburb_v2(sub_id, row_data, simil=1):
         return sub_id, []
     except Exception as e:
         set_new_error(image, "El ID %s no lo encontramos en FinalProject"%sub_id)
+        print "asd"
         print e
         return None, ["sub_id no encontrado"]
 
 def calculateNumber(text, column, has_special_format=None):
     errors = []
-    is_ammount == column["type"] = "ammount"
+    is_ammount = column["type"] = "ammount"
 
     new_value = text
     #Sustituimos las Bs por 8
@@ -214,7 +215,7 @@ def calculateNumber(text, column, has_special_format=None):
         new_value = re.sub(r'\.(\d{3})', '\\1', new_value)
 
     #Se busca si tienen alguno de los formatos posibles:
-    correct_format = bool(re_compara.search(unity))
+    correct_format = bool(re_compara.search(new_value))
 
     #si se trata de un simple conteo de formatos especiales:
     if has_special_format == None:
@@ -233,7 +234,12 @@ def calculateNumber(text, column, has_special_format=None):
         float_value=float(only_ints)
     except Exception as e:
         only_ints = re.sub(re_format, '', only_ints)
-        float_value=float(only_ints)
+        try:
+            float_value=float(only_ints)
+        except Exception as e:
+            print "error al convertir en calculateNumber en text: \"%s\""%text
+            print e
+            float_value=0
     #Algunos números que si los obtenemos, significa un problema
     if (is_ammount and 0 < float_value < 1000) or float_value > 10000000:
         errors.append(u"Número inválido en columna %s"%column["title"])

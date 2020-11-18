@@ -8,6 +8,8 @@ from pprint import pprint
 from scripts.data_cleaner import set_new_error
 import json
 
+from scripts.data_cleaner_v2 import calculateNumber
+
 amm_types = ["progress", "approved", "modified", "executed", "variation"]
 
 column_types = [
@@ -110,6 +112,28 @@ class PublicAccount(models.Model):
 
     def __unicode__(self):
         return u"%s -- %s" % (self.period_pp, self.townhall)
+
+    def reset(self, all_images=None):
+        from project.models import FinalProject
+
+        query_final_p=FinalProject.objects\
+            .filter(suburb__townhall=self.townhall,
+                    period_pp=self.period_pp)
+        if all_images:
+            query_final_p.filter(image__in=all_images)
+
+        query_final_p.update(
+            image=None, similar_suburb_name=None, error_cell="",
+            inserted_data=False, approved=None, modified=None,
+            executed=None, progress=None, variation=None)
+
+        PPImage.objects.filter(public_account=self)\
+            .update(status=None, error_cell=None, len_array_numbers=None,
+                    data_row_numbers=None, data_row_suburbs=None)
+
+        self.error_cell = ""
+        self.status = None
+        self.save()
 
     def column_formatter(self, reset=False, image_num=None):
         # LUCIAN: Esto es solo la continuación de lo que ya comenzaste
@@ -251,53 +275,38 @@ class PublicAccount(models.Model):
 
     def column_formatter_v2(self, reset=False, image_num=None):
         from project.models import FinalProject
-        from scripts.data_cleaner_v2 import saveFinalProjSuburb_v2
+        from scripts.data_cleaner_v2 import (
+            saveFinalProjSuburb_v2, calculateSuburb_v2)
         import numpy
         suburbs_dict = []
+
         all_images = PPImage.objects.filter(public_account=self)
         if image_num:
             all_images = all_images.filter(path__icontains=image_num)
 
         if reset:
-            FinalProject.objects\
-                .filter(suburb__townhall=self.townhall,
-                        period_pp=self.period_pp,
-                        image__in=all_images)\
-                .update(image=None, similar_suburb_name=None, error_cell="",
-                        inserted_data=False, approved=None, modified=None,
-                        executed=None, progress=None, variation=None)
-            PPImage.objects.filter(public_account=self)\
-                .update(status=None,
-                        error_cell=None, len_array_numbers=None,
-                        data_row_numbers=None, data_row_suburbs=None)
-            self.error_cell = ""
-            self.status = None
-            self.save()
+            self.reset(all_images)
 
         #Se obtienen los formatos de cada uno de los 
-        
         variables = self.get_variables()
+        special_formats = self.calculate_special_formats(
+            all_images, column_types[3:])
 
-        special_formats = self.calculate_special_formats(all_images, column_types[:3])
+        print special_formats
+
 
         seq = 1
         #Una vez obtenido los valores de special_formats, se tratan los datos:
         for image in all_images:
             #Intentamos obtener los datos que nos interesan
-            try:
-                table_data = image.get_json_variables()["table_data"]
-            except Exception as e:
-                print e
-                table_data = []
-                pass
-
             #print image.path
             #Por cada fila de datos:
-            for row in table_data:
+            for row in image.get_table_data():
                 seq+=1
                 errors = []
                 #Intentamos obtener de forma simple el id de la colonia.
-                sub_id, normal_name, errors = calculateSuburb_v2(row[0], row[1], image)
+                sub_id, normal_name, errors = calculateSuburb_v2(
+                    row[0], row[1], image)
                 final_proj = None
                 if sub_id == False:
                     continue
@@ -317,8 +326,9 @@ class PublicAccount(models.Model):
 
                     #if not final_proj:
                     row_data.append(final_value)
-                    elif idx and final_value:
-                        final_proj[col_ref["field"]] = final_value
+                    if idx and final_value:
+                        pass
+                        ###final_proj[col_ref["field"]] = final_value
 
                 all_row = {
                     "seq": seq, 
@@ -329,7 +339,6 @@ class PublicAccount(models.Model):
                 new_sub_id = None
                 if sub_id:
                     new_sub_id, new_errors = saveFinalProjSuburb_v2(sub_id, all_row)
-                    new_errors = 
                 if not new_sub_id:
                     orphan_rows = self.get_orphan_rows()
                     orphan_rows.append(row_data)
@@ -348,12 +357,13 @@ class PublicAccount(models.Model):
         new_orphan_subs = None
         if len_orphan:
             print "haremos un match suavizado"
-            orphan_subs = all_orphan_rows["suburbs"]
-            new_orphan_subs = flexibleMatchSuburb_v2(orphan_subs, self)
-            all_orphan_rows["suburbs"] = new_orphan_subs
-            new_orphan_rows = formatter_orphan(
-                all_images, all_orphan_rows)
-            len_new_orphan = len(new_orphan_rows)
+            ### inconsistencia de tipos en la logica, no se pudo deducir 
+            # orphan_subs = all_orphan_rows["suburbs"]
+            # new_orphan_subs = flexibleMatchSuburb_v2(orphan_subs, self)
+            # all_orphan_rows["suburbs"] = new_orphan_subs
+            # new_orphan_rows = formatter_orphan(
+            #     all_images, all_orphan_rows)
+            # len_new_orphan = len(new_orphan_rows)
 
         missings_subs = Suburb.objects.filter(
             townhall=self.townhall,
@@ -373,42 +383,40 @@ class PublicAccount(models.Model):
         self.save()
         return
 
-    def calculate_special_formats(all_images):
-        columns_nums = column_types[:3]
+    def calculate_special_formats(self, all_images, columns_nums):
+        variables = self.get_variables()
         #si ya se había canculado el special_formats, simplemente se obtiene
-        try:
-            return variables["special_formats"]
+        # if "special_formats" in variables:
+        #     return variables["special_formats"]
+
         #si no, se calcula:
-        except Exception as e:
-            #Se trabajará solo con las columnas numéricas, que son las últimas 5
-            count_rows = [0, 0, 0, 0, 0]
-            special_format_count = [0, 0, 0, 0, 0]
-            special_formats = []
-            for image in all_images:
-                try:
-                    table_data = image.get_json_variables()["table_data"]
-                except Exception as e:
-                    print e
-                    pass
-                for row in table_data:
-                    #Se trabajarán solo con los últimos tres datos
-                    for idx, col in enumerate(row[:3]):
-                        sum_col = calculateNumber(col, columns_nums[idx], None)
-                        #Solo se sumarán si la función arrojó algún número
-                        if sum_col != None:
-                            special_format_count[idx]+=sum_col
-                            count_rows[idx]+=1
-                #Se puede detarminar una tendencia de tener algún formato especial
-                #si existen al menos 5 datos con formato válido
-                if min(count_rows) > 4 or image_num:
-                    for idx, col in enumerate(columns_nums):
-                        is_special = special_format_count[idx] / float(count_rows[idx]) >= 0.75
-                        special_formats.append(is_special)
-                    break
-            variables["special_formats"] = special_formats
-            self.variables = json.dumps(variables)
-            self.save()
-            return special_formats
+        #Se trabajará solo con las columnas numéricas, que son las últimas 5
+        count_rows = [0, 0, 0, 0, 0]
+        special_format_count = [0, 0, 0, 0, 0]
+        special_formats = []
+        for image in all_images:
+            print image
+            for row in image.get_table_data():
+                #Se trabajarán solo con los últimos tres datos
+                ####Se trabajarán solo con los últimos 5 datos
+                for idx, value in enumerate(row[3:]):
+                    sum_col = calculateNumber(value, columns_nums[idx])
+                    #Solo se sumarán si la función arrojó algún número
+                    if sum_col != None:
+                        special_format_count[idx]+=sum_col
+                        count_rows[idx]+=1
+
+            #Se puede detarminar una tendencia de tener algún formato especial
+            #si existen al menos 5 datos con formato válido
+            if min(count_rows) > 4:### or image_num:
+                for idx, col in enumerate(columns_nums):
+                    is_special = special_format_count[idx] / float(count_rows[idx]) >= 0.75
+                    special_formats.append(is_special)
+                break
+        variables["special_formats"] = special_formats
+        self.variables = json.dumps(variables)
+        self.save()
+        return special_formats
 
 
 
@@ -735,7 +743,6 @@ class PPImage(models.Model):
         if data.get("unidad_bot"):
             columns_top = data.get("unidad_bot")
 
-        print columns_heades
         if all([not header for header in columns_heades]):
             print "no se encontraron las cabezeras"
             """
@@ -752,21 +759,9 @@ class PPImage(models.Model):
             title_rigth = data.get("title_rigth")
             columns_bot = data.get("columns_bot")
 
-            print "----------------"
-            print first_image
-            print
-            print first_title_rigth
-            print first_logo_left
             full_first = first_title_rigth - first_logo_left
-            print full_first
-            print
-            print title_rigth
-            print logo_left
             full = title_rigth - logo_left
             dimension_percentage = float(full) / float(full_first)
-            print full
-            print dimension_percentage
-            print
 
             first_headers = first_image_data.get("columns_heades", [])
 
@@ -788,8 +783,6 @@ class PPImage(models.Model):
                 x_right = int((ref_vertices[1].get("x") - desfase) *
                              dimension_percentage)
 
-                print x_left
-                print x_right
                 columns_heades.append(
                     {"vertices": [
                         {"x": x_left},
@@ -1084,7 +1077,7 @@ class PPImage(models.Model):
         self.save()
         return data["columns_data_bot"]
 
-    def get_table_data(self, limit_position="top"):
+    def calculate_table_data(self, limit_position="top"):
         data = self.get_json_variables()
         if not all(data["columns_data"]):
             print "se esperava 8 columnas, todas con datos"
@@ -1117,8 +1110,6 @@ class PPImage(models.Model):
         columns_data = data.get("columns_data")
 
         table_data = []
-
-        print vertical_limits
 
         for vertical_limit in vertical_limits:
             row_top = vertical_limit.get("top")
@@ -1159,8 +1150,6 @@ class PPImage(models.Model):
                 row_data.append(line_text)
 
             table_data.append(row_data)
-        from pprint import pprint
-        pprint(table_data)
 
         data["table_data"] = table_data
         self.json_variables = json.dumps(data)
@@ -1272,6 +1261,19 @@ class PPImage(models.Model):
             reference_row_top = row_bot
 
         return vertical_limits
+
+    def get_table_data(self, recalculate=False):
+        data = self.get_json_variables()
+
+        if "table_data" in data and not recalculate:
+            return data["table_data"]
+
+        self.get_data_full_image()
+
+        self.calculate_table_data(
+            limit_position=self.public_account.vertical_align_ammounts)
+
+        return self.get_json_variables().get("table_data") or []
 
     def get_blocks_in_box(self, left, right, top, bot, vision_data=False):
         # print "--------------------------"
