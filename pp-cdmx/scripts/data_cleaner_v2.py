@@ -154,8 +154,8 @@ def saveFinalProjSuburb_v2(sub_id, row_data, simil=1):
         final_proy.similar_suburb_name = simil
         for idx, value in enumerate(row_data):
             if idx:
-                print column_types[idx]["field"]
-                final_proy[column_types[idx]["field"]] = value
+                print column_types[idx]["field"]                
+                setattr(final_proy, column_types[idx]["field"], value)
         final_proy.save()
         for error in row_data["errors"]:
             anomaly, created = Anomaly.objects\

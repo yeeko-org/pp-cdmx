@@ -129,8 +129,7 @@ class PublicAccount(models.Model):
 
         PPImage.objects.filter(public_account=self)\
             .update(status=None, error_cell=None, len_array_numbers=None,
-                    data_row_numbers=None, data_row_suburbs=None, 
-                    json_variables=None)
+                    data_row_numbers=None, data_row_suburbs=None)
 
         self.orphan_rows = None
         self.error_cell = ""
@@ -292,7 +291,7 @@ class PublicAccount(models.Model):
         #Se obtienen los formatos de cada uno de los 
         variables = self.get_variables()
         special_formats = self.calculate_special_formats(
-            all_images, column_types[3:])
+            all_images, column_types[3:], image_num)
 
         print special_formats
 
@@ -380,7 +379,7 @@ class PublicAccount(models.Model):
         self.save()
         return
 
-    def calculate_special_formats(self, all_images, columns_nums):
+    def calculate_special_formats(self, all_images, columns_nums, image_num):
         variables = self.get_variables()
         #si ya se había canculado el special_formats, simplemente se obtiene
         # if "special_formats" in variables:
@@ -395,7 +394,6 @@ class PublicAccount(models.Model):
             print image
             for row in image.get_table_data():
                 #Se trabajarán solo con los últimos tres datos
-                ####Se trabajarán solo con los últimos 5 datos
                 for idx, value in enumerate(row[3:]):
                     sum_col = calculateNumber(value, columns_nums[idx])
                     #Solo se sumarán si la función arrojó algún número
@@ -405,7 +403,7 @@ class PublicAccount(models.Model):
 
             #Se puede detarminar una tendencia de tener algún formato especial
             #si existen al menos 5 datos con formato válido
-            if min(count_rows) > 4:### or image_num:
+            if min(count_rows) > 4 or image_num:
                 for idx, col in enumerate(columns_nums):
                     is_special = special_format_count[idx] / float(count_rows[idx]) >= 0.75
                     special_formats.append(is_special)
@@ -1261,12 +1259,8 @@ class PPImage(models.Model):
 
     def get_table_data(self, recalculate=False):
         data = self.get_json_variables()
-        try:
-            return data[u"table_data"]
-        except Exception as e:
-            pass
-        #if "table_data" in data and not recalculate:
-            #return data["table_data"]
+        if "table_data" in data and not recalculate:
+            return data["table_data"]
 
         self.get_data_full_image()
 
