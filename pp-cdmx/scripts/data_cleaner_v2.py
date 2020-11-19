@@ -225,7 +225,10 @@ def calculateNumber(text, column, has_special_format=None):
         return 1 if bool(re_format.search(new_value)) else 0
 
     if not correct_format:
-        errors.append(u"Formato incorrecto en columna %s"%column["title"])
+        if bool(re.search(r'(DIV)', new_value)) and not is_ammount:
+            new_value = '0%' if has_special_format else '0'
+        else:
+            errors.append(u"Formato incorrecto en columna %s"%column["title"])
     only_ints = new_value
     #Limpieza de porcentajes
     if (has_special_format and not is_ammount):
