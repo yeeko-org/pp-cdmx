@@ -336,19 +336,18 @@ class PublicAccount(models.Model):
                 }
                 new_sub_id = None
                 if sub_id:
-                    new_sub_id, new_errors = saveFinalProjSuburb_v2(sub_id, all_row)
+                    new_sub_id, new_errors = saveFinalProjSuburb_v2(
+                        sub_id, all_row)
                 if not new_sub_id:
                     orphan_rows = self.get_orphan_rows()
-                    print orphan_rows
                     orphan_rows.append(all_row)
-                    print orphan_rows
                     self.orphan_rows = json.dumps(orphan_rows)
                     self.save()
 
         all_orphan_rows = self.get_orphan_rows()
-        if image_num:
-            print u"*******las filas no insertadas:**********"
-            print all_orphan_rows
+        # if image_num:
+        #     print u"*******las filas no insertadas:**********"
+        #     print all_orphan_rows
    
         # si existen filas huérfanos:
         len_orphan = len(all_orphan_rows)
@@ -391,7 +390,6 @@ class PublicAccount(models.Model):
         special_format_count = [0, 0, 0, 0, 0]
         special_formats = []
         for image in all_images:
-            print image
             for row in image.get_table_data():
                 #Se trabajarán solo con los últimos tres datos
                 for idx, value in enumerate(row[3:]):
