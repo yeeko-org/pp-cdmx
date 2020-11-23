@@ -187,7 +187,7 @@ def calculateNumber(text, column, has_special_format=None):
     #por si se trata de una división entre 0 impresa
     has_error_excel = bool(re.search(r'D.V', new_value))
     #Nos quedamos con números y algunas letras, no más:
-    new_value = re.sub(r'[^0-9\,\.\-\%\(\)]', '', new_value)
+    new_value = re.sub(r'[^0-9\,\.\-\%]', '', new_value)
     ##Limpieza básica de espacios:
     ##new_value = new_value.strip()
     ##Se quitan los espacios alrededor de puntos y comas (siempre a puntos)
