@@ -184,14 +184,17 @@ def calculateNumber(text, column, has_special_format=None):
     new_value = re.sub(r'(s|S)', '5', new_value)
     #Sustituimos los diagonales por comas
     new_value = re.sub(r'(/)', ',', new_value)
+    #por si se trata de una división entre 0 impresa
+    has_error_excel = bool(re.search(r'D.V', new_value))
     #Nos quedamos con números y algunas letras, no más:
-    new_value = re.sub(r'[^0-9\,\.\s\-\%\(\)]', '', new_value)
-    #Limpieza básica de espacios:
-    new_value = new_value.strip()
-    #Se quitan los espacios alrededor de puntos y comas (siempre a puntos)
-    # 4 , 5 --> 4,5
-    new_value = re.sub(r'(\d)\s?[\.\,]\s?(\d)', '\\1.\\2', new_value)
-
+    new_value = re.sub(r'[^0-9\,\.\-\%\(\)]', '', new_value)
+    ##Limpieza básica de espacios:
+    ##new_value = new_value.strip()
+    ##Se quitan los espacios alrededor de puntos y comas (siempre a puntos)
+    ## 4 , 5 --> 4,5
+    ##new_value = re.sub(r'(\d)\s?[\.\,]\s?(\d)', '\\1.\\2', new_value)
+    #Se sustituyen las comas por puntos
+    new_value = re.sub(r'(\,)', '.', new_value)
     # Patrón REGEX para números (montos) válidos.
     re_ammount = re.compile( r'^\d{1,7}(\.\d{2})?$')
     # Patrón REGEX para porcentajes válidos.
@@ -201,16 +204,14 @@ def calculateNumber(text, column, has_special_format=None):
     has_decimals = re.compile(r'\d{2}$')
     re_format = has_decimals if is_ammount else has_percent    
     
-    ### column_values = []
-
-    
-    if not is_ammount:
-        #Se quita el espacio entre el número y el porcentaje, en caso de existir.
-        new_value = re.sub(r'(\d)\s?%', '\\1%', new_value)
-        #Se quitan los espacios después del abrir paréntesis y antes de cerrarlos
-        new_value = re.sub(r'\(\s?(.*)(\S+)\s?\)', '(\\1\\2)', new_value)
-        # new_value = re.sub(r'\(\s?(.+)\s?\)', '\\1', new_value)
-    else:
+    ##if not is_ammount:
+        ##Se quita el espacio entre el número y el porcentaje, en caso de existir.
+        ##new_value = re.sub(r'(\d)\s?%', '\\1%', new_value)
+        ##Se quitan los espacios después del abrir paréntesis y antes de cerrarlos
+        ##new_value = re.sub(r'\(\s?(.*)(\S+)\s?\)', '(\\1\\2)', new_value)
+        ##new_value = re.sub(r'\(\s?(.+)\s?\)', '\\1', new_value)
+    ##else:
+    if is_ammount:
         #Si después de los puntos hay 3 caracteres, los eliminamos,
         #con la idea de dejar máximo un punto decimal
         new_value = re.sub(r'\.(\d{3})', '\\1', new_value)
@@ -225,7 +226,7 @@ def calculateNumber(text, column, has_special_format=None):
         return 1 if bool(re_format.search(new_value)) else 0
 
     if not correct_format:
-        if bool(re.search(r'(DIV)', new_value)) and not is_ammount:
+        if has_error_excel and not is_ammount:
             new_value = '0%' if has_special_format else '0'
         else:
             errors.append(u"Formato incorrecto en columna %s"%column["title"])
