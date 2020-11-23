@@ -91,7 +91,7 @@ class PeriodPP(models.Model):
         if main_only:
             image_query = image_query.filter(path__icontains="0001")
 
-        image_query = image_query.objects.exclude(
+        image_query = image_query.exclude(
             public_account__unreadable__in=[u"alto"])
 
         audit_ref = {
