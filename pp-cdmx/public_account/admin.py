@@ -16,11 +16,12 @@ class PublicAccountAdmin(admin.ModelAdmin):
     model = PublicAccount
     list_display = [
         "townhall", "period_pp", "status", "approved", "modified",
-        "executed", "vertical_align_ammounts"]
+        "executed", "vertical_align_ammounts", "unreadable"]
     inlines = [PPImageInline]
     list_filter = ["townhall__name", "period_pp__year"]
     list_editable = [
-        "approved", "modified", "executed", "vertical_align_ammounts"]
+        "approved", "modified", "executed", "vertical_align_ammounts",
+        "unreadable"]
 admin.site.register(PublicAccount, PublicAccountAdmin)
 
 
