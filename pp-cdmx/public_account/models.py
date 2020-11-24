@@ -144,7 +144,8 @@ class PublicAccount(models.Model):
 
         PPImage.objects.filter(public_account=self)\
             .update(status=None, error_cell=None, len_array_numbers=None,
-                    data_row_numbers=None, data_row_suburbs=None)
+                    data_row_numbers=None, data_row_suburbs=None,
+                    json_variables=None)
 
         self.orphan_rows = None
         self.error_cell = ""
@@ -292,7 +293,9 @@ class PublicAccount(models.Model):
         return
 
     def column_formatter_v2(self, reset=False, image_num=None):
-        print self
+        print
+        print
+        print "----Cuenta publica %s, id: %s----"%(self, self.id)
         from project.models import FinalProject
         from scripts.data_cleaner_v2 import (
             saveFinalProjSuburb_v2,
@@ -315,14 +318,12 @@ class PublicAccount(models.Model):
         special_formats = self.calculate_special_formats(
             all_images, column_types[3:], image_num)
 
-        print special_formats
-
         seq = 1
         """
         Una vez obtenido los valores de special_formats, se tratan los datos:
         """
         for image in all_images:
-            print image
+            print u"    %s"%image
             # Intentamos obtener los datos que nos interesan
             # print image.path
             # Por cada fila de datos:
@@ -380,7 +381,7 @@ class PublicAccount(models.Model):
         subs_alone = None
         new_orphan_subs = None
         if len_orphan:
-            print "haremos un match suavizado"
+            # print "haremos un match suavizado"
             # inconsistencia de tipos en la logica, no se pudo deducir
             new_orphan_rows = flexibleMatchSuburb_v2(all_orphan_rows, self)
             len_new_orphan = len(new_orphan_rows)
@@ -405,7 +406,6 @@ class PublicAccount(models.Model):
         return
 
     def calculate_special_formats(self, all_images, columns_nums, image_num):
-        print self
         variables = self.get_variables()
         # si ya se había canculado el special_formats, simplemente se obtiene
         # if "special_formats" in variables:
@@ -417,7 +417,6 @@ class PublicAccount(models.Model):
         special_format_count = [0, 0, 0, 0, 0]
         special_formats = []
         for image in all_images:
-            print image
             for row in image.get_table_data():
                 # Se trabajarán solo con los últimos tres datos
                 for idx, value in enumerate(row[3:]):
@@ -484,6 +483,10 @@ class PPImage(models.Model):
     def period(self):
         return self.public_account.period_pp
 
+    def reset(self):
+        self.json_variables=None
+        self.save()
+
     def get_first_image(self):
         if "0001" in self.path:
             return self
@@ -533,6 +536,9 @@ class PPImage(models.Model):
         opcion = []
         for block in vision_data:
             complete_w = block.get("w", "")
+            block_x= block.get("vertices")[0].get("x")
+            block_y= block.get("vertices")[0].get("y")
+            var_posit = float(block_x + block_y) / 1000000
 
             if text:
                 # from pprint import pprint
@@ -540,12 +546,13 @@ class PPImage(models.Model):
                 #     pprint(complete_w)
                 if lines:
                     for line in complete_w.split("\n"):
-                        similar_value = similar(text.lower(), line.lower())
+                        similar_value = similar(text.lower().strip(),
+                                                line.lower().strip())
                         if similar_value > similar_value_min:
                             opcion.append(
                                 {
                                     "block": block,
-                                    "similar_value": similar_value
+                                    "similar_value": similar_value - var_posit
                                 }
                             )
 
@@ -562,7 +569,7 @@ class PPImage(models.Model):
                             word_text=word.get("word")
                             similar_value=similar(
                                 text.lower().strip(),
-                                word_text.lower())
+                                word_text.lower().strip())
 
                             if similar_value>0.8:
                                 word["w"]=word_text
@@ -575,19 +582,20 @@ class PPImage(models.Model):
                         opcion.append(
                             {
                                 "block": best_word_opcion,
-                                "similar_value": similar_value
+                                "similar_value": similar_value - var_posit
                             }
                         )
                         break
 
 
                 else:
-                    similar_value = similar(text.lower(), complete_w.lower())
+                    similar_value = similar(text.lower().strip(),
+                                            complete_w.lower().strip())
                 if similar_value > similar_value_min:
                     opcion.append(
                         {
                             "block": block,
-                            "similar_value": similar_value
+                            "similar_value": similar_value - var_posit
                         }
                     )
                 # if text.lower() in complete_w.lower():
@@ -606,7 +614,7 @@ class PPImage(models.Model):
                     opcion.append(
                         {
                             "block": block,
-                            "similar_value": 1
+                            "similar_value": 1 - var_posit
                         }
                     )
 
@@ -620,8 +628,6 @@ class PPImage(models.Model):
                 """
                 words=[word.strip() for word in text.split(" ") if word]
                 if len(words) == 1:
-                    print "busqueda especial por una sola palabra"
-                    print words[0]
                     return self.find_block(
                         text=words[0], single_word=True,
                         similar_value_min=similar_value_min,
@@ -663,13 +669,13 @@ class PPImage(models.Model):
                 left = block_left
         return left
 
-    def find_reference_blocks(self):
-        self.find_block_logo()
-        self.find_block_unidad()
-        self.find_block_title()
-        self.find_block_ppd()
-        self.find_block_ammounts()
-        self.find_headers()
+    def find_reference_blocks(self, show_options=False):
+        self.find_block_logo(show_options=show_options)
+        self.find_block_unidad(show_options=show_options)
+        self.find_block_title(show_options=show_options)
+        self.find_block_ppd(show_options=show_options)
+        self.find_block_ammounts(show_options=show_options)
+        self.find_headers(show_options=show_options)
 
     def check_reference(self):
         data = self.get_json_variables()
@@ -719,9 +725,10 @@ class PPImage(models.Model):
 
         return reference
 
-    def find_block_logo(self):
+    def find_block_logo(self, show_options=False):
         block_logo = self.find_block(
-            self.period.logo or "gobierno de la ciudad de mexico")
+            self.period.logo or "gobierno de la ciudad de mexico",
+            show_options=show_options)
 
         if block_logo:
             vertices = block_logo.get("vertices")
@@ -735,13 +742,15 @@ class PPImage(models.Model):
         else:
             print u"no se encontro el data_left"
 
-    def find_block_unidad(self):
+    def find_block_unidad(self, show_options=False):
         block_unidad = self.find_block(
             (self.period.unidad or u"unidad responsable del gasto: ") +
-            self.public_account.townhall.name)
+            self.public_account.townhall.name,
+            show_options=show_options)
         if not block_unidad:
             block_unidad = self.find_block(
-                self.period.unidad or u"unidad responsable del gasto")
+                self.period.unidad or u"unidad responsable del gasto",
+            show_options=show_options)
         if not block_unidad:
             # considerar otras medidas como variantes
             return
@@ -751,10 +760,11 @@ class PPImage(models.Model):
         self.json_variables = json.dumps(data)
         self.save()
 
-    def find_block_title(self):
+    def find_block_title(self, show_options=False):
         block_title = self.find_block(
             self.period.title or
-            ("cuenta publica de la ciudad de mexico %s" % self.period.year))
+            ("cuenta publica de la ciudad de mexico %s" % self.period.year),
+            show_options=show_options)
         if not block_title:
             # considerar otras medidas como variantes
             return
@@ -764,10 +774,11 @@ class PPImage(models.Model):
         self.json_variables = json.dumps(data)
         self.save()
 
-    def find_block_ppd(self):
+    def find_block_ppd(self, show_options=False):
         block_ppd = self.find_block(
             self.period.ppd or
-            "ppd presupuesto participativo para las delegaciones")
+            "ppd presupuesto participativo para las delegaciones",
+            show_options=show_options)
         if not block_ppd:
             # considerar otras medidas como variantes
             return
@@ -780,9 +791,10 @@ class PPImage(models.Model):
         self.json_variables = json.dumps(data)
         self.save()
 
-    def find_block_ammounts(self):
+    def find_block_ammounts(self, show_options=False):
         block_ammounts = self.find_block(
-            self.period.ammounts or "presupuesto (pesos con dos decimales")
+            self.period.ammounts or "presupuesto (pesos con dos decimales",
+            show_options=show_options)
         if not block_ammounts:
             # considerar otras medidas como variantes
             return
@@ -796,21 +808,27 @@ class PPImage(models.Model):
         self.json_variables = json.dumps(data)
         self.save()
 
-    def find_headers(self):
+    def find_headers(self, show_options=False):
         import re
         colonia = self.find_block(self.period.colonia or
-                                  u"colonia o pueblo originario")
+                                  u"colonia o pueblo originario",
+                                show_options=show_options)
         proyecto = self.find_block(self.period.proyecto or
-                                   u"proyecto")
+                                   u"proyecto",
+                                show_options=show_options)
         descripcion = self.find_block(self.period.descripcion or
-                                      u"descripción")
+                                      u"descripción",
+                                show_options=show_options)
         avance = self.find_block(self.period.avance or
-                                 u"avance del proyecto")
+                                 u"avance del proyecto",
+                                show_options=show_options)
         if not avance:
-            avance = self.find_block(regex=r'Proyecto(?:$|\s\S+)?')
+            avance = self.find_block(regex=r'Proyecto(?:$|\s\S+)?',
+                                show_options=show_options)
 
         aprobado = self.find_block(self.period.aprobado or
-                                   u"aprobado", allow_single_word=True)
+                                   u"aprobado", allow_single_word=True,
+                                show_options=show_options)
         # --------------------------------------------------------------------
         # ajuste de ancho en aprovacion
         if aprobado:
@@ -832,11 +850,14 @@ class PPImage(models.Model):
                 # print
         # --------------------------------------------------------------------
         modificado = self.find_block(self.period.modificado or
-                                     u"modificado", allow_single_word=True)
+                                     u"modificado", allow_single_word=True,
+                                show_options=show_options)
         ejercido = self.find_block(self.period.ejercido or
-                                   u"ejercido", allow_single_word=True)
+                                   u"ejercido", allow_single_word=True,
+                                show_options=show_options)
         variacion = self.find_block(self.period.variacion or
-                                    u"variación", allow_single_word=True)
+                                    u"variación", allow_single_word=True,
+                                show_options=show_options)
         # --------------------------------------------------------------------
         # ajuste de ancho en variacion
         if variacion:
@@ -907,15 +928,21 @@ class PPImage(models.Model):
             first_image_data = first_image.get_json_variables()
             first_data_left = first_image_data.get("data_left")
             if not first_data_left:
-                print "No se tiene calculado el data_left en 0001"
+                print u"        No se tiene calculado el data_left en 0001"
                 return
 
             first_logo_left = first_image_data.get("logo_left")
             first_title_rigth = first_image_data.get("title_rigth")
+            if not first_logo_left or not first_title_rigth:
+                print u"        Se requiere logo y titulo en %s "%first_image
+                return
 
             logo_left = data.get("logo_left")
             title_rigth = data.get("title_rigth")
-            columns_bot = data.get("columns_bot")
+            if not logo_left or not title_rigth:
+                print u"        Se requiere logo y titulo en %s "%self
+                return
+
 
             full_first = first_title_rigth - first_logo_left
             full = title_rigth - logo_left
@@ -928,7 +955,9 @@ class PPImage(models.Model):
                 data_left = cross_dimensions(first_data_left)
 
         if no_headers != 8:
-            print "no se encontraron las cabezeras"
+            print u"        No se encontraron todas las cabezeras: %s"%(
+                no_headers)
+            print u"        Se usara las medidas de la imagen 0001"
             """
             no tiene cabezeras, se estima que tampoco tendra unidad, asi que
             se tendra que calcular los margnes apartir de los margenes
@@ -950,29 +979,31 @@ class PPImage(models.Model):
                         {"x": x_right}]}
                 )
 
-        elif not data_left:
-            print "No se tiene calculado el data_left"
-            print "calculando data_left con los datos de first_image 0001"
-
-            if not (columns_heades and all(columns_heades)):
-                print "se esperava en columns_heades una lista llena"
-                return
-
         if not len(columns_heades) == 8:
-            print u"se esperava una lista de 8 elementos"
-            print u"actualemnte tiene: %s" % len(columns_heades)
+            print u"        Se esperava una lista de 8 elementos"
+            print u"        Actualemnte tiene: %s" % len(columns_heades)
             return
         elif not all(columns_heades):
-            print "el find_headers no encontro todas las cabezeras"
+            print u"        El find_headers no encontro todas las cabezeras"
             return
         columns_boxs = []
 
+        previus_block=0
         for header in columns_heades:
 
             vertices = header.get("vertices")
             center = (vertices[0].get("x") + vertices[1].get("x")) / 2
             # center=(vertices[0].get("x") + vertices[1].get("x")
             #     + vertices[2].get("x") + vertices[3].get("x"))/4
+
+            # consistencia de las cabezeras, deven estar en orde acendente
+            if center < previus_block:
+                print "******************************************************"
+                print u"        inconsistencia de las cabezeras"
+                print u"        Una de ellas esta en orden erroneo"
+                print "******************************************************"
+                return
+            previus_block=center
 
             radio = center - data_left
             right_data = center + radio
@@ -993,7 +1024,6 @@ class PPImage(models.Model):
         data["columns_top"] = columns_top
         self.json_variables = json.dumps(data)
         self.save()
-        print columns_boxs
 
     def calculate_columns_bot(self):
         # alto maximo del archivo entre 1700 y 1750
@@ -1200,7 +1230,7 @@ class PPImage(models.Model):
         data = self.get_json_variables()
         columns_data = data["columns_data"]
         if not columns_data:
-            print self
+            return 
         row_0_y = columns_data[0][0].get("vertices")[0].get("y")
         row_1_y = columns_data[1][0].get("vertices")[0].get("y")
         row_2_y = columns_data[2][0].get("vertices")[0].get("y")
@@ -1216,6 +1246,8 @@ class PPImage(models.Model):
     def calculate_columns_data_bot(self):
         data = self.get_json_variables()
         columns_data = data["columns_data"]
+        if not columns_data:
+            return 
         row_0_y = columns_data[0][-1].get("vertices")[2].get("y")
         row_1_y = columns_data[1][-1].get("vertices")[2].get("y")
         row_2_y = columns_data[2][-1].get("vertices")[2].get("y")
@@ -1230,8 +1262,12 @@ class PPImage(models.Model):
 
     def calculate_table_data(self, limit_position="top"):
         data = self.get_json_variables()
+        columns_data = data.get("columns_data")
+        if not columns_data:
+            print u"        No se tiene columns_data"
+            return
         if not all(data["columns_data"]):
-            print "se esperava 8 columnas, todas con datos"
+            print u"        Se esperava 8 columnas, todas con datos"
             return
         columns_data_top = data.get(
             "columns_data_top", self.calculate_columns_data_top())

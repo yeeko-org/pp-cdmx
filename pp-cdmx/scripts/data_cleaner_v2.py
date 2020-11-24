@@ -171,7 +171,7 @@ def saveFinalProjSuburb_v2(sub_id, row_data, simil=1):
 
 def calculateNumber(text, column, has_special_format=None):
     errors = []
-    is_ammount = column["type"] = "ammount"
+    is_ammount = column["type"] == "ammount"
 
     new_value = text
     #Sustituimos las Bs por 8
@@ -242,8 +242,9 @@ def calculateNumber(text, column, has_special_format=None):
         try:
             float_value=float(only_ints)
         except Exception as e:
-            print "error al convertir en calculateNumber en text: \"%s\""%text
-            print e
+            if only_ints:
+                print "error al convertir en calculateNumber en text: \"%s\""%text
+                print e
             return None, errors
     #Algunos números que si los obtenemos, significa un problema
     if (is_ammount and 0 < float_value < 1000) or float_value > 10000000:
