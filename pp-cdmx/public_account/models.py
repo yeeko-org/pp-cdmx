@@ -62,6 +62,54 @@ column_types = [
     },
 ]
 
+def check_columns_headers(columns_headers, show_prints=False):
+    if not isinstance(columns_headers, list):
+        if show_prints:
+            print u"        columns_headers no es una lista"
+        return
+
+    elif not len(columns_headers) == 8:
+        if show_prints:
+            print u"        Se esperava una lista de 8 elementos"
+            print u"        Actualemnte tiene: %s" % len(columns_headers)
+        return
+    elif not all(columns_headers):
+        if show_prints:
+            print u"        El find_headers no encontro todas las cabezeras"
+        return
+
+    previus_block = 0
+    revised_columns_headers=[]
+    for header in columns_headers:
+        revised_header=False
+        center=0
+        if isinstance(header, list):
+            for sub_header in header:
+                if not isinstance(sub_header, dict):
+                    print sub_header
+                    continue
+                vertices = sub_header.get("vertices")
+                center = (vertices[0].get("x") + vertices[1].get("x")) / 2
+                if center < previus_block:
+                    continue
+                revised_header=sub_header
+                break
+        else:
+            vertices = header.get("vertices")
+            center = (vertices[0].get("x") + vertices[1].get("x")) / 2
+            if not (center < previus_block):
+                revised_header=header
+
+        if not revised_header:
+            if show_prints:
+                print "******************************************************"
+                print u"        inconsistencia de las cabezeras"
+                print u"        Requiere revicion manual"
+                print "******************************************************"
+            return
+        previus_block=center
+        revised_columns_headers.append(revised_header)
+    return revised_columns_headers
 
 class PublicAccount(models.Model):
     # original_pdf = models.FileField(
@@ -145,7 +193,7 @@ class PublicAccount(models.Model):
         PPImage.objects.filter(public_account=self)\
             .update(status=None, error_cell=None, len_array_numbers=None,
                     data_row_numbers=None, data_row_suburbs=None,
-                    json_variables=None)
+                    json_variables=None, table_data=None, headers=None)
 
         self.orphan_rows = None
         self.error_cell = ""
@@ -293,6 +341,8 @@ class PublicAccount(models.Model):
         return
 
     def column_formatter_v2(self, reset=False, image_num=None):
+        from project.models import Project, FinalProject, AnomalyFinalProject
+        from classification.models import Anomaly
         print
         print
         print "----Cuenta publica %s, id: %s----"%(self, self.id)
@@ -322,12 +372,25 @@ class PublicAccount(models.Model):
         """
         Una vez obtenido los valores de special_formats, se tratan los datos:
         """
+        if not special_formats:
+            #si el calculo de special_formats no trae informacion, crashea
+            # todo el proceso, hasta arreglarlo no se procesaran las imagenes
+            set_new_error(
+                self, "error al calcular special_formats: %s"%special_formats)
+            set_new_error(
+                self, "No se pocreso ningun imagen.table_data")
+            all_images=[]
+
         for image in all_images:
             print u"    %s"%image
             # Intentamos obtener los datos que nos interesan
             # print image.path
             # Por cada fila de datos:
-            for row in image.get_table_data():
+            image_table_data=image.get_table_data()
+            if not image_table_data:
+                set_new_error(
+                    self, "La imagen %s no proceso Table Data"%image)
+            for row in image_table_data:
                 seq += 1
                 errors = []
                 # Intentamos obtener de forma simple el id de la colonia.
@@ -397,6 +460,22 @@ class PublicAccount(models.Model):
         self.status = "incompleted" if incomp_images.count() else "completed"
 
         if missings_subs.count():
+            """
+            agregar anomalia al proyecto final:
+            Anomalía: name="Sin coincidencia en nombre de colonia",
+            is_public=False
+            """
+            anomaly_obj, is_created = Anomaly.objects\
+                .get_or_create(name="Sin coincidencia en nombre de colonia")
+            anomaly_obj.is_public=False
+            anomaly_obj.save()
+            anomaly_final_project, is_created=AnomalyFinalProject.objects\
+                .get_or_create(
+                    anomaly=anomaly_obj,
+                    public_account=self,
+                    )
+            print anomaly_text
+
             set_new_error(self, 'Faltan las siguientes Colonias:')
         for sub in missings_subs:
             # agregar anomalia
@@ -457,6 +536,53 @@ class PublicAccount(models.Model):
             #       "se reiniciara a []")
             return []
 
+    def check_ammounts(self):
+        """
+        Para aquellas Cuentas Públicas completas (sin missing_subs), ejecutar el
+        siguiente script (ponlo en una función aparte):
+        Hacer una suma de los campos approved, modified y executed de los
+        FinalProyect y compararlo con los campos del mismo nombre del PublicAccount
+        correspondiente. Si no coinciden, asociar el PublicAccount con la Anomalía 
+        "Totales no cuadran"
+        """
+        from project.models import Project, FinalProject, AnomalyFinalProject
+        from classification.models import Anomaly
+
+        print self
+
+        missings_subs = Suburb.objects.filter(
+            townhall=self.townhall,
+            finalproject__period_pp=self.period_pp,
+            finalproject__image__isnull=True)
+        if missings_subs.exists():
+            #Esta cuenta publica todavia tiene Colonias perdidas
+            return
+
+        real_approved=0
+        real_modified=0
+        real_executed=0
+        for final_proyect in FinalProject.objects.filter(
+            suburb__townhall=self.townhall,
+            period_pp=self.period_pp):
+            real_approved+=final_proyect.approved or 0
+            real_modified+=final_proyect.modified or 0
+            real_executed+=final_proyect.executed or 0
+
+        if (self.approved != real_approved or 
+            self.modified != real_modified or
+            self.executed != real_executed
+            ):
+            anomaly_text = "Totales no cuadran"
+            print anomaly_text
+            anomaly, is_created = Anomaly.objects\
+                .get_or_create(name=anomaly_text)
+            anomaly_final_project, is_created=AnomalyFinalProject.objects\
+                .get_or_create(
+                    anomaly=anomaly,
+                    public_account=self,
+                    )
+        print
+
     class Meta:
         verbose_name = u"Cuenta Publica"
         verbose_name_plural = u"Cuentas Publicas"
@@ -466,6 +592,11 @@ class PPImage(models.Model):
     public_account = models.ForeignKey(PublicAccount)
     path = models.CharField(max_length=255)
     json_variables = models.TextField(blank=True, null=True)
+
+    headers = models.TextField(blank=True, null=True)
+    table_data = models.TextField(blank=True, null=True)
+    first_headers_used = models.BooleanField(default=True)
+
     vision_data = models.TextField(blank=True, null=True)
     clean_data = models.TextField(blank=True, null=True)
     error_cell = models.TextField(
@@ -506,7 +637,7 @@ class PPImage(models.Model):
     def find_block(
         self, text=False, regex=False, full_obj=False, lines=False,
         single_word=False, allow_single_word=False,
-        similar_value_min=0.7, show_options=False):
+        similar_value_min=0.7, show_options=False, many_options=False):
         from scripts.data_cleaner import similar
         import re
 
@@ -527,6 +658,9 @@ class PPImage(models.Model):
                         options.append(block_option)
                 if options:
                     options.sort(key=block_value)
+                    if many_options:
+                        options.reverse()
+                        return options
                     return options[-1]
                 else:
                     return False
@@ -631,7 +765,7 @@ class PPImage(models.Model):
                     return self.find_block(
                         text=words[0], single_word=True,
                         similar_value_min=similar_value_min,
-                        show_options=show_options)
+                        show_options=show_options, many_options=many_options)
             return False
 
         opcion.sort(key=block_value)
@@ -642,6 +776,16 @@ class PPImage(models.Model):
                 print w
                 print value
                 print
+
+        if many_options:
+            opcion.reverse()
+            return [
+            {
+                "vertices": op.get("block").get("vertices"),
+                "w": op.get("block").get("w"),
+                "similar_value": op.get("similar_value")
+            }
+            for op in opcion]
 
         best_opcion = opcion[-1]
         block = best_opcion.get("block")
@@ -679,9 +823,10 @@ class PPImage(models.Model):
 
     def check_reference(self):
         data = self.get_json_variables()
-        columns_heades = data.get("columns_heades")
-        if not type(columns_heades) is list:
-            columns_heades = []
+        # columns_headers = data.get("columns_headers")
+        columns_headers = self.get_headers()
+        if not type(columns_headers) is list:
+            columns_headers = []
 
         reference = {
             "logo": True if data.get("logo_left") else False,
@@ -691,35 +836,35 @@ class PPImage(models.Model):
             "ammounts": True if data.get("ammounts_center") else False,
         }
         try:
-            reference["colonia"] = True if columns_heades[0] else False
+            reference["colonia"] = True if columns_headers[0] else False
         except Exception as e:
             reference["colonia"] = False
         try:
-            reference["proyecto"] = True if columns_heades[1] else False
+            reference["proyecto"] = True if columns_headers[1] else False
         except Exception as e:
             reference["proyecto"] = False
         try:
-            reference["descripcion"] = True if columns_heades[2] else False
+            reference["descripcion"] = True if columns_headers[2] else False
         except Exception as e:
             reference["descripcion"] = False
         try:
-            reference["avance"] = True if columns_heades[3] else False
+            reference["avance"] = True if columns_headers[3] else False
         except Exception as e:
             reference["avance"] = False
         try:
-            reference["aprobado"] = True if columns_heades[4] else False
+            reference["aprobado"] = True if columns_headers[4] else False
         except Exception as e:
             reference["aprobado"] = False
         try:
-            reference["modificado"] = True if columns_heades[5] else False
+            reference["modificado"] = True if columns_headers[5] else False
         except Exception as e:
             reference["modificado"] = False
         try:
-            reference["ejercido"] = True if columns_heades[6] else False
+            reference["ejercido"] = True if columns_headers[6] else False
         except Exception as e:
             reference["ejercido"] = False
         try:
-            reference["variacion"] = True if columns_heades[7] else False
+            reference["variacion"] = True if columns_headers[7] else False
         except Exception as e:
             reference["variacion"] = False
 
@@ -730,17 +875,16 @@ class PPImage(models.Model):
             self.period.logo or "gobierno de la ciudad de mexico",
             show_options=show_options)
 
-        if block_logo:
-            vertices = block_logo.get("vertices")
-            data = self.get_json_variables()
-            #data["logo"] = first_opcion
+        if not block_logo:
+            return
+        vertices = block_logo.get("vertices")
+        data = self.get_json_variables()
+        #data["logo"] = first_opcion
 
-            data["logo_left"] = vertices[0].get("x")
-            data["logo_bot"] = vertices[3].get("y")
-            self.json_variables = json.dumps(data)
-            self.save()
-        else:
-            print u"no se encontro el data_left"
+        data["logo_left"] = vertices[0].get("x")
+        data["logo_bot"] = vertices[3].get("y")
+        self.json_variables = json.dumps(data)
+        self.save()
 
     def find_block_unidad(self, show_options=False):
         block_unidad = self.find_block(
@@ -808,79 +952,93 @@ class PPImage(models.Model):
         self.json_variables = json.dumps(data)
         self.save()
 
-    def find_headers(self, show_options=False):
+    def find_headers(self, show_options=False, return_result=False):
         import re
-        colonia = self.find_block(self.period.colonia or
-                                  u"colonia o pueblo originario",
-                                show_options=show_options)
-        proyecto = self.find_block(self.period.proyecto or
-                                   u"proyecto",
-                                show_options=show_options)
-        descripcion = self.find_block(self.period.descripcion or
-                                      u"descripción",
-                                show_options=show_options)
-        avance = self.find_block(self.period.avance or
-                                 u"avance del proyecto",
-                                show_options=show_options)
+        colonia = self.find_block(
+            self.period.colonia or u"colonia o pueblo originario",
+            show_options=show_options, many_options=True)
+        proyecto = self.find_block(
+            self.period.proyecto or u"proyecto",
+            show_options=show_options, many_options=True)
+        descripcion = self.find_block(
+            self.period.descripcion or u"descripción",
+            show_options=show_options, many_options=True)
+        avance = self.find_block(
+            self.period.avance or u"avance del proyecto",
+            show_options=show_options, many_options=True)
         if not avance:
-            avance = self.find_block(regex=r'Proyecto(?:$|\s\S+)?',
-                                show_options=show_options)
+            avance = self.find_block(
+                regex=r'Proyecto(?:$|\s\S+)?',
+                show_options=show_options, many_options=True)
 
-        aprobado = self.find_block(self.period.aprobado or
-                                   u"aprobado", allow_single_word=True,
-                                show_options=show_options)
+        aprobado = self.find_block(
+            self.period.aprobado or u"aprobado", allow_single_word=True,
+            show_options=show_options, many_options=True)
         # --------------------------------------------------------------------
         # ajuste de ancho en aprovacion
         if aprobado:
-            text_aprobado = aprobado.get("w")
-            if text_aprobado:
-                # se espera un asterisco obligatorio despues de Aprobado
-                x = re.search(r'Aprobado( )*(\*)', text_aprobado)
-                # print text_aprobado
-                if not x:
-                    # print "se le agrego variacion de 10 pixeles"
-                    vertices = aprobado.get("vertices")
-                    p1 = vertices[1]
-                    p2 = vertices[2]
-                    p1["x"] = p1["x"] + 10
-                    p2["x"] = p2["x"] + 10
-                    aprobado["vertices"] = [vertices[0], p1, p2, vertices[3]]
-                # else:
-                #     print "no se le agrego variacion"
-                # print
+            if not isinstance(aprobado, list):
+                aprobado=[aprobado]
+            for sub_aprobado in aprobado:
+                if not isinstance( sub_aprobado, dict):
+                    print sub_aprobado
+                    continue
+                text_aprobado = sub_aprobado.get("w")
+                if text_aprobado:
+                    # se espera un asterisco obligatorio despues de Aprobado
+                    x = re.search(r'Aprobado( )*(\*)', text_aprobado)
+                    # print text_aprobado
+                    if not x:
+                        # print "se le agrego variacion de 10 pixeles"
+                        vertices = sub_aprobado.get("vertices")
+                        p1 = vertices[1]
+                        p2 = vertices[2]
+                        p1["x"] = p1["x"] + 10
+                        p2["x"] = p2["x"] + 10
+                        sub_aprobado["vertices"] = [vertices[0], p1,
+                                                    p2, vertices[3]]
+                    # else:
+                    #     print "no se le agrego variacion"
+                    # print
         # --------------------------------------------------------------------
-        modificado = self.find_block(self.period.modificado or
-                                     u"modificado", allow_single_word=True,
-                                show_options=show_options)
-        ejercido = self.find_block(self.period.ejercido or
-                                   u"ejercido", allow_single_word=True,
-                                show_options=show_options)
-        variacion = self.find_block(self.period.variacion or
-                                    u"variación", allow_single_word=True,
-                                show_options=show_options)
+        modificado = self.find_block(
+            self.period.modificado or u"modificado", allow_single_word=True,
+            show_options=show_options, many_options=True)
+        ejercido = self.find_block(
+            self.period.ejercido or u"ejercido", allow_single_word=True,
+            show_options=show_options, many_options=True)
+        variacion = self.find_block(
+            self.period.variacion or u"variación", allow_single_word=True,
+            show_options=show_options, many_options=True)
         # --------------------------------------------------------------------
         # ajuste de ancho en variacion
         if variacion:
-            text_variacion = variacion.get("w").strip()
-            if text_variacion:
-                # el porciento puede ser con salto de linea
-                x = re.search(r'Variación(\s)*(%|\$)', text_variacion)
-                # print text_variacion
-                if not x:
-                    # print "se le agrego variacion de 20 pixeles"
-                    vertices = variacion.get("vertices")
-                    p1 = vertices[1]
-                    p2 = vertices[2]
-                    p1["x"] = p1["x"] + 20
-                    p2["x"] = p2["x"] + 20
-                    variacion["vertices"] = [vertices[0], p1, p2, vertices[3]]
-                # else:
-                #     print "no se le agrego variacion"
-                # print
+            if not isinstance(variacion, list):
+                variacion=[variacion]
+            for sub_variacion in variacion:
+                if not isinstance( sub_variacion, dict):
+                    print sub_variacion
+                    continue
+                text_variacion = sub_variacion.get("w").strip()
+                if text_variacion:
+                    # el porciento puede ser con salto de linea
+                    x = re.search(r'Variación(\s)*(%|\$)', text_variacion)
+                    # print text_variacion
+                    if not x:
+                        # print "se le agrego variacion de 20 pixeles"
+                        vertices = sub_variacion.get("vertices")
+                        p1 = vertices[1]
+                        p2 = vertices[2]
+                        p1["x"] = p1["x"] + 20
+                        p2["x"] = p2["x"] + 20
+                        sub_variacion["vertices"] = [vertices[0], p1,
+                                                     p2, vertices[3]]
+                    # else:
+                    #     print "no se le agrego variacion"
+                    # print
         # --------------------------------------------------------------------
 
-        data = self.get_json_variables()
-        data["columns_heades"] = [
+        columns_headers = [
             colonia,
             proyecto,
             descripcion,
@@ -902,47 +1060,63 @@ class PPImage(models.Model):
         #     "variacion": variacion,
         # }
 
-        self.json_variables = json.dumps(data)
+        self.headers = json.dumps(columns_headers)
         self.save()
 
-    def calculate_column_boxs(self):
-        data = self.get_json_variables()
-        columns_heades = data.get("columns_heades", [])
+        if return_result:
+            return columns_headers
+
+    def get_headers(self, reset=True, show_options=False, show_prints=False):
+        # se revisa si ya se tiene o si se puede calcular los headers
+        if reset:
+            self.headers = None
+        try:
+            columns_headers = json.loads(self.headers)
+        except Exception as e:
+            columns_headers=None
+
+        #calculando los headers si no se encuentran
+        if not columns_headers:
+            self.find_headers(show_options=show_options)
+
+        try:
+            columns_headers = json.loads(self.headers)
+        except Exception as e:
+            columns_headers=None
+
+        revised_columns_headers=check_columns_headers(
+            columns_headers, show_prints=show_prints)
+
+        data=self.get_json_variables()
         data_left = data.get("data_left")
 
-        columns_top = 0
-        if data.get("logo_bot"):
-            columns_top = data.get("logo_bot")
-        if data.get("unidad_bot"):
-            columns_top = data.get("unidad_bot")
-
-        no_headers=sum([1 if header else 0 for header in columns_heades])
-        desfase = 0
-        dimension_percentage = 0
-        first_image_data = {}
-        def cross_dimensions(dimension):
-            return int((dimension - desfase) * dimension_percentage)
-
-        if not data_left or no_headers != 8:
+        # calcular las columnas de la pagina 0001
+        if (not revised_columns_headers or not data_left) and not "0001" in self.path:
+            
             first_image = self.get_first_image()
             first_image_data = first_image.get_json_variables()
             first_data_left = first_image_data.get("data_left")
             if not first_data_left:
                 print u"        No se tiene calculado el data_left en 0001"
-                return
+                return None
+
+            first_revised_columns_headers = first_image\
+                .get_headers(show_prints=show_prints)
+            if not first_revised_columns_headers:
+                print u"        No se tiene calculado columns_headers en 0001"
+                return None
 
             first_logo_left = first_image_data.get("logo_left")
             first_title_rigth = first_image_data.get("title_rigth")
             if not first_logo_left or not first_title_rigth:
                 print u"        Se requiere logo y titulo en %s "%first_image
-                return
+                return None
 
             logo_left = data.get("logo_left")
             title_rigth = data.get("title_rigth")
             if not logo_left or not title_rigth:
                 print u"        Se requiere logo y titulo en %s "%self
-                return
-
+                return None
 
             full_first = first_title_rigth - first_logo_left
             full = title_rigth - logo_left
@@ -951,59 +1125,67 @@ class PPImage(models.Model):
             desfase = first_logo_left - int(
                 float(logo_left) / dimension_percentage)
 
+
+            def cross_dimensions(dimension):
+                return int((dimension - desfase) * dimension_percentage)
+
+            #revisar si existe data_left o calculala con first_image_data
             if not data_left:
+                print u"        no se encontro data_left, se usara el de 0001"
                 data_left = cross_dimensions(first_data_left)
+                data["data_left"]=data_left
+                self.json_variables = json.dumps(data)
 
-        if no_headers != 8:
-            print u"        No se encontraron todas las cabezeras: %s"%(
-                no_headers)
-            print u"        Se usara las medidas de la imagen 0001"
-            """
-            no tiene cabezeras, se estima que tampoco tendra unidad, asi que
-            se tendra que calcular los margnes apartir de los margenes
-            del first_image 0001
-            """
-            first_headers = first_image_data.get("columns_heades", [])
+            if not revised_columns_headers:
+                print u"        inconsistencia en headers, se usaran los de 0001"
+                revised_columns_headers = []
+                for ref_header in first_revised_columns_headers:
+                    ref_vertices = ref_header.get("vertices")
 
-            columns_heades = []
-            for ref_header in first_headers:
-                ref_vertices = ref_header.get("vertices")
+                    x_left = cross_dimensions(ref_vertices[0].get("x"))
+                    x_right = cross_dimensions(ref_vertices[1].get("x"))
 
-                x_left = cross_dimensions(ref_vertices[0].get("x"))
-                x_right = cross_dimensions(ref_vertices[1].get("x"))
+                    revised_columns_headers.append(
+                        {"vertices": [
+                            {"x": x_left},
+                            {"x": x_right},
+                            {"x": x_right}]}
+                    )
 
-                columns_heades.append(
-                    {"vertices": [
-                        {"x": x_left},
-                        {"x": x_right},
-                        {"x": x_right}]}
-                )
+                self.first_headers_used=True
+            self.save()
 
-        if not len(columns_heades) == 8:
-            print u"        Se esperava una lista de 8 elementos"
-            print u"        Actualemnte tiene: %s" % len(columns_heades)
+        if not revised_columns_headers:
+            print "        No se pudo calcular columns_headers"
+
+        return revised_columns_headers
+
+    def calculate_column_boxs(self, reset=True):
+        # columns_headers = data.get("columns_headers", [])
+        columns_headers = self.get_headers(reset=reset)
+        if not columns_headers:
+            print "        No se pudo obtener las cabezeras propias o de 0001"
             return
-        elif not all(columns_heades):
-            print u"        El find_headers no encontro todas las cabezeras"
+
+        data = self.get_json_variables()
+        data_left = data.get("data_left")
+        if not data_left:
+            print "        No se pudo obtener data_left propio o de 0001"
             return
+
+        columns_top = 0
+        if data.get("logo_bot"):
+            columns_top = data.get("logo_bot")
+        if data.get("unidad_bot"):
+            columns_top = data.get("unidad_bot")
+
         columns_boxs = []
-
-        previus_block=0
-        for header in columns_heades:
+        for header in columns_headers:
 
             vertices = header.get("vertices")
             center = (vertices[0].get("x") + vertices[1].get("x")) / 2
             # center=(vertices[0].get("x") + vertices[1].get("x")
             #     + vertices[2].get("x") + vertices[3].get("x"))/4
-
-            # consistencia de las cabezeras, deven estar en orde acendente
-            if center < previus_block:
-                print "******************************************************"
-                print u"        inconsistencia de las cabezeras"
-                print u"        Una de ellas esta en orden erroneo"
-                print "******************************************************"
-                return
-            previus_block=center
 
             radio = center - data_left
             right_data = center + radio
@@ -1041,9 +1223,9 @@ class PPImage(models.Model):
         # busqueda del bloque de firmas
         block_elaboro = self.find_block("Elaboro :", lines=True)
         columns_bot = compare_block_bot(columns_bot, block_elaboro, 0.8)
-        block_elaboro_re = self.find_block(
-            regex=r'(REFIERE|REMANENTE|AUTORI|ELABOR|LABORADO|DIRECTOR)')
-        columns_bot = compare_block_bot(columns_bot, block_elaboro_re)
+        # block_elaboro_re = self.find_block(
+        #     regex=r'(REFIERE|REMANENTE|AUTORI|ELABOR|LABORADO|DIRECTOR)')
+        # columns_bot = compare_block_bot(columns_bot, block_elaboro_re)
 
         block_autorizo = self.find_block("Autorizo :", lines=True)
         columns_bot = compare_block_bot(columns_bot, block_autorizo, 0.8)
@@ -1338,8 +1520,11 @@ class PPImage(models.Model):
 
             table_data.append(row_data)
 
-        data["table_data"] = table_data
-        self.json_variables = json.dumps(data)
+        # data["table_data"] = table_data
+        # self.json_variables = json.dumps(data)
+        # from pprint import pprint
+        # pprint (table_data)
+        self.table_data = json.dumps(table_data)
         self.save()
 
     def box_limits_top(
@@ -1450,16 +1635,23 @@ class PPImage(models.Model):
         return vertical_limits
 
     def get_table_data(self, recalculate=False):
-        data = self.get_json_variables()
-        if "table_data" in data and not recalculate:
-            return data["table_data"]
+        try:
+            table_data=json.loads(self.table_data)
+        except Exception as e:
+            table_data = None
+
+        if table_data and not recalculate:
+            return table_data
 
         self.get_data_full_image()
 
         self.calculate_table_data(
             limit_position=self.public_account.vertical_align_ammounts)
 
-        return self.get_json_variables().get("table_data") or []
+        try:
+            return json.loads(self.table_data)
+        except Exception as e:
+            return []
 
     def get_blocks_in_box(self, left, right, top, bot, vision_data=False):
         # print "--------------------------"

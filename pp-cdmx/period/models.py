@@ -39,6 +39,9 @@ class PeriodPP(models.Model):
         upload_to="period_pp",
         verbose_name=u"Archivo PDF del IECM")
 
+    global_error_stack = models.TextField(blank=True, null=True)
+    all_results = models.TextField(blank=True, null=True)
+
     # Formato estandar por año, detalles para la busqueda de referencias
     logo = models.CharField(
         max_length=100,
@@ -82,6 +85,29 @@ class PeriodPP(models.Model):
     variacion = models.CharField(
         max_length=100, default=u"variación",
         blank=True, null=True)
+
+    # Primero creamos todos los proyectos finales de un año determinado
+    def create_final_project(self):
+        from geographic.models import Suburb
+        from project.models import FinalProject
+        all_suburbs = Suburb.objects.all()
+        for sub in all_suburbs:
+            finalproject, is_created = FinalProject.objects\
+                .get_or_create(period_pp=self, suburb=sub)
+        # comprobamos los 1812 proyectos finales:
+        all_final = FinalProject.objects.all()
+        print all_final.count()
+
+    def print_all_results(self):
+        from project.models import FinalProject
+        from geographic.models import TownHall
+        results=[]
+        for th in TownHall.objects.all():
+            results.append(print_results(self, th))
+        results.append(print_results(self))
+        self.all_results=u"\n".join(results)
+        self.save()
+        print self.all_results
 
     def test_references(self, reset=False, main_only=True):
         from public_account.models import PPImage
@@ -146,8 +172,14 @@ class PeriodPP(models.Model):
 
     def process_all_accounts(self, reset=True):
         from public_account.models import PublicAccount
+        if reset or not self.global_error_stack:
+            self.global_error_stack = ""
         for public_account in PublicAccount.objects.filter(period_pp=self):
             public_account.column_formatter_v2(reset=reset)
+            self.global_error_stack = u"\n".join([
+                self.global_error_stack, public_account.error_cell or ""])
+        self.save()
+        self.print_all_results()
 
     class Meta:
         verbose_name = u"Periodo de Presupuesto Participativo"
@@ -155,3 +187,34 @@ class PeriodPP(models.Model):
 
     def __unicode__(self):
         return unicode(self.year)
+
+
+def result_percent(res_count, total, type_res):
+    base_count = float(total) / 100
+    return "%s  -->  %s%s %s" % (
+        res_count, round(res_count / base_count, 1), "%", type_res)
+
+
+def print_results(year=2018, th=None):
+    from project.models import FinalProject
+    results = ["*********************"]
+    results.append(th.name if th else 'RESULTADOS GLOBALES')
+    base_fp = FinalProject.objects.filter(period_pp=year)
+    if th:
+        base_fp = base_fp.filter(suburb__townhall=th)
+    base_count = base_fp.count()
+    results.append("%s  --> TOTAL" % base_count)
+    linked_sub = base_fp.filter(image__isnull=False)
+    complete_sub = linked_sub.filter(
+        approved__isnull=False, modified__isnull=False,
+        executed__isnull=False, progress__isnull=False)
+    without_error = complete_sub.exclude(
+        anomalyfinalproject__isnull=False,
+        anomalyfinalproject__anomaly__is_public=False)
+    results.append(result_percent(linked_sub.count(),
+                                  base_count, 'vinculados'))
+    results.append(result_percent(complete_sub.count(),
+                                  base_count, 'completos'))
+    results.append(result_percent(without_error.count(),
+                                  base_count, 'sin errores'))
+    return u"\n".join(results)

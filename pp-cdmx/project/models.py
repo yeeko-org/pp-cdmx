@@ -123,6 +123,68 @@ class FinalProject(models.Model):
             .filter(suburb=self.suburb, period_pp=self.period_pp)\
             .distinct()
 
+    def check_project_winer(self):
+        from project.models import Project, FinalProject, AnomalyFinalProject
+        from classification.models import Anomaly
+        from scripts.data_cleaner_v2 import similar
+
+        print self
+        project_query = Project.objects.filter(
+            period_pp=self.period_pp, is_winer=True)
+        project_count = project_query.count()
+        winer_project = None
+        anomaly_text = None
+        anomaly_is_public = None
+        if project_count == 1:
+            # un solo ganador
+            winer_project = project_query.first()
+            if not check_names(winer_project, self,
+                               similar_value_min=0.85):
+                # el ganador no es el mismo que el registrado, buscar posible
+                # ganador
+                winer_project = find_winer(
+                    Project.objects.filter(
+                        period_pp=self.period_pp),
+                    self, 0.7)
+                anomaly_text = "Ganador y ejecutado distintos"
+        elif project_count:
+            # multiples ganadores
+            winer_project = find_winer(
+                Project.objects.filter(
+                    period_pp=self.period_pp, is_winer=True),
+                self, 0.7)
+            if not winer_project:
+                winer_project = find_winer(
+                    Project.objects.filter(
+                        period_pp=self.period_pp),
+                    self, 0.7)
+                anomaly_text = "Ganador y ejecutado distintos"
+        else:
+            winer_project = find_winer(
+                Project.objects.filter(
+                    period_pp=self.period_pp),
+                self, 0.7)
+            anomaly_text = "Sin ganador y ejecutado"
+        if not winer_project:
+            anomaly_text = "Nombre del Proyecto IECM no coincidente"
+            anomaly_is_public = False
+        else:
+            self.project=winer_project
+        if anomaly_text:
+            anomaly_obj, is_created = Anomaly.objects\
+                .get_or_create(name=anomaly_text)
+            if isinstance(anomaly_is_public, bool):
+                anomaly_obj.is_public=anomaly_is_public
+                anomaly_obj.save()
+            anomaly_final_project, is_created=AnomalyFinalProject.objects\
+                .get_or_create(
+                    anomaly=anomaly_obj,
+                    final_project=self,
+                    )
+            print anomaly_text
+        print self.project
+        print
+
     class Meta:
         verbose_name = "Proyecto Final en la Cuenta Publica"
         verbose_name_plural = "Proyectos Finales en la Cuenta Publica"
@@ -142,3 +204,49 @@ class AnomalyFinalProject(models.Model):
     class Meta:
         verbose_name_plural = u"Anomalía y Proyecto Final"
         verbose_name = u"Anomalía y Proyecto Final"
+
+
+
+def check_names(winer_project, final_project, similar_value_min=0.85):
+    from scripts.data_cleaner_v2 import similar
+    winer_project_name_iecm=(winer_project.name_iecm or "").lower().strip()
+    final_project_final_name = (final_project.final_name or "").lower().strip()
+    final_project_description_cp = (final_project.description_cp or "").lower().strip()
+    similar_value1 = similar(
+        winer_project_name_iecm,
+        final_project_final_name)
+    similar_value2 = similar(
+        winer_project_name_iecm,
+        final_project_description_cp)
+    if similar_value1 > similar_value2:
+        max_value = similar_value1
+    else:
+        max_value = similar_value2
+    if max_value >= similar_value_min:
+        return max_value
+    else:
+        return 0
+
+
+def key_similar_value(block):
+    return block["similar_value"]
+
+
+def find_winer(project_query, final_project, similar_value_min):
+    projects = []
+    for project in project_query:
+        similar_value = check_names(project, final_project, similar_value_min)
+        if not similar_value:
+            continue
+        projects.append(
+            {
+                "project": project,
+                "similar_value": similar_value
+            }
+        )
+    if not projects:
+        return None
+    projects.sort(key=key_similar_value, reverse=True)
+    return projects[0]["project"]
+
+

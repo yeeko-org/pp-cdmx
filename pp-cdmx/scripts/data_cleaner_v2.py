@@ -149,7 +149,7 @@ def saveFinalProjSuburb_v2(sub_id, row_data, simil=1):
     image = PPImage.objects.get(id=row_data["image_id"])
     try:
         final_proy = FinalProject.objects.get(suburb__id=sub_id,
-            image__isnull=True)
+            image__isnull=True, period_pp=image.public_account.period_pp)
         final_proy.image = image
         final_proy.similar_suburb_name = simil
         for idx, value in enumerate(row_data.get("data")):
@@ -243,7 +243,10 @@ def calculateNumber(text, column, has_special_format=None):
             float_value=float(only_ints)
         except Exception as e:
             if only_ints:
-                print "error al convertir en calculateNumber en text: \"%s\""%text
+                try:
+                    print "error al convertir en calculateNumber en text: \"%s\""%text
+                except Exception as e:
+                    pass
                 print e
             return None, errors
     #Algunos números que si los obtenemos, significa un problema

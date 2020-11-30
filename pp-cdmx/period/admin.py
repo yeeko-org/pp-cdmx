@@ -24,6 +24,13 @@ class PeriodPPAdmin(admin.ModelAdmin):
                 "year", "is_public", "law_pp", "pdf_iecm"
             ]
         }],
+        ["Resultados", {
+            "classes": ["collapse"],
+            "fields": [
+                "all_results",
+                "global_error_stack"
+            ]
+        }],
         ["Variacion de las Referencias", {
             "classes": ["collapse"],
             "fields": [
