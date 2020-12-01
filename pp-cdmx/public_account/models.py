@@ -63,6 +63,7 @@ column_types = [
 ]
 
 def check_columns_headers(columns_headers, show_prints=False):
+    no_headers=8
     if not isinstance(columns_headers, list):
         if show_prints:
             print u"        columns_headers no es una lista"
@@ -73,14 +74,18 @@ def check_columns_headers(columns_headers, show_prints=False):
             print u"        Se esperava una lista de 8 elementos"
             print u"        Actualemnte tiene: %s" % len(columns_headers)
         return
+
     elif not all(columns_headers):
-        if show_prints:
-            print u"        El find_headers no encontro todas las cabezeras"
-        return
+        #si la cabezera faltante es la ultima, se puede considerar valido
+        no_headers=7
+        if not all(columns_headers[:7]):
+            if show_prints:
+                print u"        El find_headers no encontro todas las cabezeras"
+            return
 
     previus_block = 0
     revised_columns_headers=[]
-    for header in columns_headers:
+    for header in columns_headers[:no_headers]:
         revised_header=False
         center=0
         if isinstance(header, list):
@@ -474,7 +479,6 @@ class PublicAccount(models.Model):
                     anomaly=anomaly_obj,
                     public_account=self,
                     )
-            print anomaly_text
 
             set_new_error(self, 'Faltan las siguientes Colonias:')
         for sub in missings_subs:
@@ -1169,6 +1173,7 @@ class PPImage(models.Model):
 
         data = self.get_json_variables()
         data_left = data.get("data_left")
+        data_right = 0
         if not data_left:
             print "        No se pudo obtener data_left propio o de 0001"
             return
@@ -1188,19 +1193,41 @@ class PPImage(models.Model):
             #     + vertices[2].get("x") + vertices[3].get("x"))/4
 
             radio = center - data_left
-            right_data = center + radio
+            data_right = center + radio
 
             columns_boxs.append({
                 "left": data_left,
                 "center": center,
-                "right": right_data
+                "right": data_right
             })
 
-            data_left = right_data
+            data_left = data_right
             if len(vertices) > 2:
                 header_bot = vertices[2].get("y")
                 if header_bot > columns_top:
                     columns_top = header_bot
+
+        if len(columns_headers)==7:
+            # la ultima cabezera no fue identificada correctamente, pero se
+            # considero valido para las cabezeras porque se puede
+            # calcular artificialmente
+
+            #se calcula como el ultimo data_right
+            data_left=data_right
+            try:
+                data = self.get_json_variables()
+                data_center = data.get("data_center")
+                data_left = data.get("data_left")
+                data_right = (data_center-data_left) + data_center
+            except Exception as e:
+                data_right = 2200
+            center=int((data_left + data_right)/2)
+
+            columns_boxs.append({
+                "left": data_left,
+                "center": center,
+                "right": data_right
+            })
 
         data["columns_boxs"] = columns_boxs
         data["columns_top"] = columns_top
@@ -1448,9 +1475,9 @@ class PPImage(models.Model):
         if not columns_data:
             print u"        No se tiene columns_data"
             return
-        if not all(data["columns_data"]):
-            print u"        Se esperava 8 columnas, todas con datos"
-            return
+        # if not all(data["columns_data"]):
+        #     print u"        Se esperava 8 columnas, todas con datos"
+        #     return
         columns_data_top = data.get(
             "columns_data_top", self.calculate_columns_data_top())
         columns_data_bot = data.get(
