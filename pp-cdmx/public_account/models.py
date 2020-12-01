@@ -1439,10 +1439,19 @@ class PPImage(models.Model):
         data = self.get_json_variables()
         columns_data = data["columns_data"]
         if not columns_data:
-            return 
-        row_0_y = columns_data[0][0].get("vertices")[0].get("y")
-        row_1_y = columns_data[1][0].get("vertices")[0].get("y")
-        row_2_y = columns_data[2][0].get("vertices")[0].get("y")
+            return
+        try:
+            row_0_y = columns_data[0][0].get("vertices")[0].get("y")
+        except Exception as e:
+            return
+        try:
+            row_1_y = columns_data[1][0].get("vertices")[0].get("y")
+        except Exception as e:
+            row_1_y = row_0_y
+        try:
+            row_2_y = columns_data[2][0].get("vertices")[0].get("y")
+        except Exception as e:
+            row_2_y = row_1_y
 
         # el limite superior de el dato mas alto con un ajuste de -5 pixeles
         row_x_y = row_0_y if row_0_y < row_1_y else row_1_y
@@ -1456,10 +1465,20 @@ class PPImage(models.Model):
         data = self.get_json_variables()
         columns_data = data["columns_data"]
         if not columns_data:
-            return 
-        row_0_y = columns_data[0][-1].get("vertices")[2].get("y")
-        row_1_y = columns_data[1][-1].get("vertices")[2].get("y")
-        row_2_y = columns_data[2][-1].get("vertices")[2].get("y")
+            return
+
+        try:
+            row_0_y = columns_data[0][-1].get("vertices")[2].get("y")
+        except Exception as e:
+            return
+        try:
+            row_1_y = columns_data[1][-1].get("vertices")[2].get("y")
+        except Exception as e:
+            row_1_y = row_0_y
+        try:
+            row_2_y = columns_data[2][-1].get("vertices")[2].get("y")
+        except Exception as e:
+            row_2_y = row_1_y
 
         # el limite superior de el dato mas alto con un ajuste de -5 pixeles
         row_x_y = row_0_y if row_0_y > row_1_y else row_1_y
