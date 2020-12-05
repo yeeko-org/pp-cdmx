@@ -35,15 +35,17 @@ class FinalProjectAdmin(admin.ModelAdmin):
     # list_display = [
     #     "suburb", "period_pp", "project", "total_votes", "description_cp",
     #     "display_anomalyfinalprojectinline"]
-    list_display=["suburb", "period_pp", "project", 
-        "assigned" ,
-        "approved" ,
-        "modified" ,
-        "executed" ,
-        "progress" ,
-        "variation" ,
+    list_display = [
+        "suburb", "period_pp", "project",
+        "assigned",
+        "approved",
+        "modified",
+        "executed",
+        "progress",
+        "variation",
     ]
-    list_filter = ["suburb__townhall", "anomalyfinalproject__anomaly"]
+    list_filter = ["suburb__townhall", "anomalyfinalproject__anomaly",
+                   "period_pp"]
     fieldsets = [
         [None, {
             "fields": [
