@@ -643,7 +643,7 @@ class PPImage(models.Model):
 
     def valid_headers(self):
         try:
-            headers = json.loads(pp_image.headers)
+            headers = json.loads(self.headers)
         except Exception as e:
             return False
         valid_header = False

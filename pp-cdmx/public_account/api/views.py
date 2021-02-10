@@ -24,7 +24,7 @@ class NextView(views.APIView):
                 next_image.public_account.period_pp.year,
                 next_image.path),
             "id": next_image.id,
-            "divisors": next_image.is_first_page(),
+            "divisors": next_image.is_first_page() and not next_image.valid_headers,
             "missing_count": next_query.count(),
         }
 
