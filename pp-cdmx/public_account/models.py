@@ -178,6 +178,18 @@ class PublicAccount(models.Model):
         help_text=u"columnas a ignorar para la alineacion horizontal (4-8)",
         blank=True, null=True)
 
+    def need_manual_ref_calculate(self):
+        pass
+        #estimar primero si sus referencias sus imagenes
+
+        # cuando todas las que necesitavan revicion tengan sus datos manuales
+        # se devera realizar un segundo calculo pero ahora basado en la
+        # cantidad de proyectos finales que no tienen una referencia
+        # si se cree que existe mucha perdida de datos
+
+
+
+
     def __unicode__(self):
         return u"%s -- %s" % (self.period_pp, self.townhall)
 
@@ -614,6 +626,58 @@ class PPImage(models.Model):
     status = models.CharField(
         blank=True, null=True, max_length=80, default=u"uncleaned")
 
+    need_manual_ref = models.NullBooleanField(blank=True, null=True)
+    manual_ref = models.TextField(blank=True, null=True)
+
+    # revicion de referencias ------------------------------------------------
+
+    # evaluacion manual de los headers, para marcar cuales fueron erroneos,
+    # esto puede ser por año solo para las paginas 1
+
+    # La imagen 2019 -- IZP PP-2019-IZP_0001.png 430 no proceso Table Data
+
+    def is_first_page(self):
+        if "0001" in self.path:
+            return True
+        return False
+
+    def valid_headers(self):
+        try:
+            headers = json.loads(pp_image.headers)
+        except Exception as e:
+            return False
+        valid_header = False
+        if len(headers) == 8:
+            valid_header = all(headers)
+        return valid_header
+
+    def need_manual_ref_calculate(self):
+        data = self.get_json_variables()
+        need_manual_ref = False
+        data_left = data.get("data_left")
+
+        valid_header = self.valid_headers()
+
+        if self.is_first_page():
+            title_rigth = data.get("title_rigth")
+            logo_left = data.get("logo_left")
+            if not title_rigth or not logo_left:
+                need_manual_ref=True
+            if not data_left or not valid_header:
+                need_manual_ref=True
+        else:
+            if not data_left or not valid_header:
+                title_rigth = data.get("title_rigth")
+                logo_left = data.get("logo_left")
+                if not title_rigth or not logo_left:
+                    need_manual_ref=True
+        self.need_manual_ref = need_manual_ref
+        self.save()
+
+        if need_manual_ref:
+            print self
+    # ------------------------------------------------------------------------
+
     @property
     def period(self):
         return self.public_account.period_pp
@@ -623,7 +687,7 @@ class PPImage(models.Model):
         self.save()
 
     def get_first_image(self):
-        if "0001" in self.path:
+        if self.is_first_page():
             return self
         else:
             return PPImage.objects.filter(

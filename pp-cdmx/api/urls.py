@@ -12,4 +12,5 @@ urlpatterns = [
     # Endpoints
     url(r'^geo/', include('geographic.api.urls')),
     url(r'^project/', include('project.api.urls')),
+    url(r'^public_account/', include('public_account.api.urls')),
 ]
