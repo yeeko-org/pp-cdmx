@@ -6,6 +6,10 @@ from rest_framework.exceptions import (
 from rest_framework.response import Response
 from django.conf import settings as dj_settings
 
+from public_account.models import PublicAccount
+from project.models import FinalProject
+from geographic.models import TownHall
+
 
 class NextView(views.APIView):
     permission_classes = [permissions.AllowAny]
@@ -63,3 +67,24 @@ class NextView(views.APIView):
         pp_image.save()
 
         return Response(self.get_next_data())
+
+
+class AmountVariationView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        return Response(serializers.AmountVariationSerializer(
+            PublicAccount.objects.all(), many=True).data)
+
+
+class AmountVariationTownhallView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, **kwargs):
+        try:
+            townhall = TownHall.objects.get(id=kwargs.get("townhall_id"))
+        except Exception as e:
+            raise NotFound()
+        final_projects = FinalProject.objects.filter(suburb__townhall=townhall)
+        return Response(serializers.AmountVariationSuburbsSerializer(
+            final_projects, many=True).data)

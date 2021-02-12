@@ -57,11 +57,13 @@ class SuburbGeoDataSerializer(serializers.ModelSerializer):
 from project.api.serializers import FinalProjectSerializer
 
 
-class SuburbHeavySerializer(serializers.ModelSerializer):
-    geo_data = SuburbGeoDataSerializer(source="suburbgeodata")
-    final_projects = FinalProjectSerializer(many=True)
+class SuburbFullSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Suburb
         fields = "__all__"
-        # depth = 2
+
+
+class SuburbHeavySerializer(SuburbFullSerializer):
+    geo_data = SuburbGeoDataSerializer(source="suburbgeodata")
+    final_projects = FinalProjectSerializer(many=True)

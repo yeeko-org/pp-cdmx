@@ -178,6 +178,72 @@ class PublicAccount(models.Model):
         help_text=u"columnas a ignorar para la alineacion horizontal (4-8)",
         blank=True, null=True)
 
+    approved_mean = models.FloatField(blank=True, null=True)
+    executed_mean = models.FloatField(blank=True, null=True)
+
+    not_executed = models.IntegerField(blank=True, null=True)
+    minus_10 = models.IntegerField(blank=True, null=True)
+    minus_5 = models.IntegerField(blank=True, null=True)
+    similar = models.IntegerField(blank=True, null=True)
+    plus_5 = models.IntegerField(blank=True, null=True)
+
+    no_info = models.NullBooleanField(blank=True, null=True)
+
+    def calculate_means(self):
+        from project.models import FinalProject
+        from django.db.models import Avg
+        query_final_p = FinalProject.objects.filter(
+            # inserted_data=True,
+            period_pp=self.period_pp,
+            suburb__townhall=self.townhall)
+        avgs=query_final_p.aggregate(Avg('approved'), Avg('executed'))
+        self.approved_mean = avgs.get("approved__avg")
+        self.executed_mean = avgs.get("executed__avg")
+
+        query_final_p_2=query_final_p.filter(
+            approved__isnull=False,
+            executed__isnull=False)
+
+        self.not_executed = query_final_p.filter(executed=0).count()
+        self.no_info = not query_final_p.filter(
+            image__public_account=self).exists()
+        self.minus_10 = 0
+        self.minus_5 = 0
+        self.similar = 0
+        self.plus_5 = 0
+
+        for fp in query_final_p_2:
+            if not fp.approved:
+                continue
+            division_percentage = float((fp.executed/fp.approved) *100)
+            if not fp.executed:
+                fp.range=u"not_executed"
+                variation_calc = 0
+
+            elif division_percentage > 102.5:
+                self.plus_5+=1
+                fp.range=u">2.5%"
+
+            elif division_percentage > 97.5:
+                self.similar+=1
+                fp.range=u"similar"
+
+            elif division_percentage > 90:
+                fp.range=u"<-2.5%"
+                self.minus_5+=1
+
+            elif division_percentage > 0:
+                self.minus_10+=1
+                fp.range=u"<-10%"
+            else:
+                fp.range=u"not_executed"
+                variation_calc = 0
+
+            fp.variation_calc = division_percentage
+            fp.save()
+        self.save()
+        return
+
     def need_manual_ref_calculate(self):
         pass
         #estimar primero si sus referencias sus imagenes

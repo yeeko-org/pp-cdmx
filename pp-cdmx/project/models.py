@@ -113,6 +113,10 @@ class FinalProject(models.Model):
         verbose_name=u"pila de errores")
     inserted_data = models.BooleanField(default=False, 
         verbose_name=u"Datos insertados desde cuenta pública")
+    
+    variation_calc = models.FloatField(blank=True, null=True)
+
+    range=models.CharField(max_length=50, blank=True, null=True)
 
     # pre_clasification
     # manuela_
