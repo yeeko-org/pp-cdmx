@@ -23,6 +23,7 @@ class CatalogView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
+        from period.models import PeriodPP
 
         categories_queryset = CategoryIECM.objects.all()
         townhall_queryset = TownHall.objects.all()#\
@@ -39,7 +40,9 @@ class CatalogView(views.APIView):
             "suburb_type": serializers.SuburbTypeSerializer(
                 suburb_type_queryset, many=True).data,
             "suburb": serializers.SuburbSerializer(
-                suburb_queryset, many=True).data
+                suburb_queryset, many=True).data,
+            "period": serializers.PeriodPPSerializer(
+                PeriodPP.objects.all(), many=True).data
             # "suburb": Suburb.objects.all().values(
             #     "id", "name", "suburb_type", "townhall", "pob_2010")
             # .annotate(geo_point = F('suburbgeodata__geo_point'))

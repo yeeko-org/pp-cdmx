@@ -4,6 +4,33 @@ from rest_framework import serializers
 from geographic.models import (
     TownHall, TownHallGeoData, SuburbType, Suburb, SuburbGeoData, )
 
+from period.models import PeriodPP
+
+
+class PeriodPPSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = PeriodPP
+        fields = [
+            "year",
+            "is_public",
+            "law_pp",
+            "pdf_iecm",
+            "logo",
+            "unidad",
+            "title",
+            "ppd",
+            "ammounts",
+            "colonia",
+            "proyecto",
+            "descripcion",
+            "avance",
+            "aprobado",
+            "modificado",
+            "ejercido",
+            "variacion",
+        ]
+
 
 class TownHallSerializer(serializers.ModelSerializer):
     # geo_point=serializers.ReadOnlyField(source="townhallgeodata.geo_point")
