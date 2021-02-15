@@ -252,8 +252,13 @@ class PublicAccount(models.Model):
         # se devera realizar un segundo calculo pero ahora basado en la
         # cantidad de proyectos finales que no tienen una referencia
         # si se cree que existe mucha perdida de datos
-
-
+    def recalculate_w_manual_ref(self):
+        for image in PPImage.objects.filter(
+            need_manual_ref=True,
+            manual_ref__isnull=False,
+            public_account=self):
+            image.get_data_from_columns_mr()
+        self.column_formatter_v2()
 
 
     def __unicode__(self):
@@ -742,6 +747,7 @@ class PPImage(models.Model):
 
         if need_manual_ref:
             print self
+
     # ------------------------------------------------------------------------
 
     @property
@@ -1426,6 +1432,107 @@ class PPImage(models.Model):
                     for line in data_in_block]
             )
         data["columns_data"] = columns_data
+        self.json_variables = json.dumps(data)
+        self.save()
+
+    def get_manual_ref(self):
+        try:
+            manual_ref = json.loads.self(self.manual_ref)
+        except Exception as e:
+            print e
+            return
+        references=manual_ref.get("references", )
+        try:
+            ref_0=references[0]
+            ref_1=references[1]
+        except Exception as e:
+            print e
+            return
+
+        try:
+            x0 = ref_0.get("x", 0)
+            x1 = ref_1.get("x", 0)
+            y0 = ref_0.get("y", 0)
+            y1 = ref_1.get("y", 0)
+        except Exception as e:
+            print e
+            return
+
+        columns_top = y0 if y0<y1 else y1
+        columns_bot = y0 if y0>y1 else y1
+        left=x0 if x0<x1 else x1
+        right =x0 if x0>x1 else x1
+
+        if self.is_first_page():
+            divisors=manual_ref.get("divisors", )
+        else:
+            first_image = self.get_first_image()
+            first_manual_ref_dict = self.first_image.get_manual_ref()
+            if not first_manual_ref_dict:
+                return
+
+            first_left = first_manual_ref_dict.get("left")
+            first_right = first_manual_ref_dict.get("right")
+            first_divisors = first_manual_ref_dict.get("divisors")
+            full_first = first_right - first_left
+            full = right - left
+            dimension_percentage = float(full) / float(full_first)
+            desfase = first_left - int(
+                float(left) / dimension_percentage)
+            def cross_dimensions(dimension):
+                return int((dimension - desfase) * dimension_percentage)
+
+            divisors=[]
+            for divisor in first_divisors:
+                divisors.append(cross_dimensions(divisor))
+
+        try:
+            divisors = [divisor.get("x") for divisor in divisors]
+        except Exception as e:
+            print e
+            return
+        if len(divisors)!=7:
+            return
+        divisors.sort()
+
+        return {
+            "columns_top": columns_top,
+            "columns_bot": columns_bot,
+            "left": left,
+            "right": right,
+            "divisors": divisors,
+        }
+
+    def get_data_from_columns_mr(self):
+        manual_ref = self.get_manual_ref
+        if not manual_ref:
+            return
+
+        columns_top = manual_ref.get("columns_top")
+        columns_bot = manual_ref.get("columns_bot")
+        left = manual_ref.get("left")
+        right = manual_ref.get("right")
+        divisors = manual_ref.get("divisors")
+        divisors.append(right)
+
+        for divisor in divisors:
+            right = divisor
+            data_in_block = self.get_blocks_in_box(
+                left, right, columns_top, columns_bot)
+            columns_data.append(
+                [
+                    {
+                        "w": line.get("w"),
+                        "vertices": line.get("vertices")
+                    }
+                    for line in data_in_block]
+            )
+            left=divisor
+        data = self.get_json_variables()
+        data["columns_data"] = columns_data
+        data["columns_data_top"] = columns_top
+        data["columns_data_bot"] = columns_bot
+
         self.json_variables = json.dumps(data)
         self.save()
 
