@@ -1437,7 +1437,7 @@ class PPImage(models.Model):
 
     def get_manual_ref(self):
         try:
-            manual_ref = json.loads.self(self.manual_ref)
+            manual_ref = json.loads(self.manual_ref)
         except Exception as e:
             print e
             return
