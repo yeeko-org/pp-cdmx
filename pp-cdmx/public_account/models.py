@@ -1504,7 +1504,7 @@ class PPImage(models.Model):
         }
 
     def get_data_from_columns_mr(self):
-        manual_ref = self.get_manual_ref
+        manual_ref = self.get_manual_ref()
         if not manual_ref:
             return
 
