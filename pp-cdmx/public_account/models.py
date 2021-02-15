@@ -1515,6 +1515,7 @@ class PPImage(models.Model):
         divisors = manual_ref.get("divisors")
         divisors.append(right)
 
+        columns_data=[]
         for divisor in divisors:
             right = divisor
             data_in_block = self.get_blocks_in_box(
