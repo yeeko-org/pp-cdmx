@@ -1464,7 +1464,12 @@ class PPImage(models.Model):
         right =x0 if x0>x1 else x1
 
         if self.is_first_page():
-            divisors=manual_ref.get("divisors", )
+            divisors=manual_ref.get("divisors")
+            try:
+                divisors = [divisor.get("x") for divisor in divisors]
+            except Exception as e:
+                print e
+                return
         else:
             first_image = self.get_first_image()
             first_manual_ref_dict = first_image.get_manual_ref()
@@ -1486,11 +1491,7 @@ class PPImage(models.Model):
             for divisor in first_divisors:
                 divisors.append(cross_dimensions(divisor))
 
-        try:
-            divisors = [divisor.get("x") for divisor in divisors]
-        except Exception as e:
-            print e
-            return
+
         if len(divisors)!=7:
             return
         divisors.sort()
