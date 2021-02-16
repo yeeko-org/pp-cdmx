@@ -16,12 +16,24 @@ class NextView(views.APIView):
 
     def get_next_data(self):
         from public_account.models import PPImage
+        from django.db.models import Q
+        import json
         next_query = PPImage.objects.filter(
-            need_manual_ref=True, manual_ref__isnull=True)
+            Q(need_second_manual_ref=True)|
+            Q(need_manual_ref=True, manual_ref__isnull=True)
+            ).distinct()
+
+
         next_image = next_query.first()
         if not next_image:
             return {"msg": "sin imagenes por revisar"}
         domain = getattr(dj_settings, "URL_NEXT_SERVER", "")
+        try:
+            data = json.loads(next_image.manual_ref)
+        except Exception as e:
+            print e
+            print next_image.manual_ref
+            data = None
         return {
             "url": u"%s%s/%s" % (
                 domain,
@@ -30,6 +42,7 @@ class NextView(views.APIView):
             "id": next_image.id,
             "divisors": next_image.is_first_page(),
             "missing_count": next_query.count(),
+            "data": data
         }
 
     def get(self, request):
@@ -61,6 +74,7 @@ class NextView(views.APIView):
                     "references": references,
                     "divisors": divisors
                 })
+            pp_image.need_second_manual_ref = False
         except Exception as e:
             raise ValidationError(
                 {"errors": ["Datos de references errones", u"%s" % e]})

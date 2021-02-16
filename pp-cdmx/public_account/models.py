@@ -700,6 +700,8 @@ class PPImage(models.Model):
     need_manual_ref = models.NullBooleanField(blank=True, null=True)
     manual_ref = models.TextField(blank=True, null=True)
 
+    need_second_manual_ref = models.NullBooleanField(blank=True, null=True)
+
     # revicion de referencias ------------------------------------------------
 
     # evaluacion manual de los headers, para marcar cuales fueron erroneos,

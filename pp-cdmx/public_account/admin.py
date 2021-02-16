@@ -85,6 +85,7 @@ class PPImageAdmin(admin.ModelAdmin):
                 "status",
                 "need_manual_ref",
                 "manual_ref",
+                "need_second_manual_ref",
             ]
         }],
         ["config", {
