@@ -1467,7 +1467,7 @@ class PPImage(models.Model):
             divisors=manual_ref.get("divisors", )
         else:
             first_image = self.get_first_image()
-            first_manual_ref_dict = self.first_image.get_manual_ref()
+            first_manual_ref_dict = first_image.get_manual_ref()
             if not first_manual_ref_dict:
                 return
 
