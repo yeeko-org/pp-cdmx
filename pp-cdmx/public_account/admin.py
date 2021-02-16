@@ -75,4 +75,43 @@ class PPImageAdmin(admin.ModelAdmin):
         "finalproject__suburb__name"]
     #inlines = [FinalProjectInline]
     raw_id_fields = ["public_account"]
+    readonly_fields = ["get_image_url"]
+    fieldsets = [
+        [None, {
+            "fields": [
+                "public_account",
+                "get_image_url",
+                "table_data",
+                "status",
+                "need_manual_ref",
+                "manual_ref",
+            ]
+        }],
+        ["config", {
+            "classes": ["collapse"],
+            "fields": [
+                "json_variables",
+                "headers",
+                "first_headers_used",
+                "vision_data",
+                "clean_data",
+                "error_cell",
+                "len_array_numbers",
+                "data_row_numbers",
+                "data_row_suburbs",
+            ],
+        }],
+    ]
+
+    def get_image_url(self, obj):
+        from django.conf import settings as dj_settings
+        from django.utils.html import format_html
+        domain = getattr(dj_settings, "URL_NEXT_SERVER", "")
+        full_url = u"%s%s/%s" % (
+            domain,
+            obj.public_account.period_pp.year,
+            obj.path)
+        return format_html('<a href="%s" target="_blank"><img src="%s" alt="image" width="500" height="400"></a><br>' % (
+            full_url, full_url))
+
 admin.site.register(PPImage, PPImageAdmin)
