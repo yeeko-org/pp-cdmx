@@ -11,6 +11,7 @@ from django.contrib.auth.models import User
 from public_account.models import PPImage
 
 from public_account.models import PublicAccount
+import json
 
 
 class Project(models.Model):
@@ -113,6 +114,9 @@ class FinalProject(models.Model):
         verbose_name=u"pila de errores")
     inserted_data = models.BooleanField(default=False, 
         verbose_name=u"Datos insertados desde cuenta pública")
+
+    data_raw = models.TextField(blank=True, null=True, 
+        verbose_name=u"Informacion de la imagen")
     
     variation_calc = models.FloatField(blank=True, null=True)
 
@@ -121,6 +125,30 @@ class FinalProject(models.Model):
     # pre_clasification
     # manuela_
     # original_page
+
+    def get_data_raw(self):
+        try:
+            return json.loads(self.data_raw)
+        except Exception as e:
+            return None
+
+    def set_data_raw(self, data):
+        try:
+            self.data_raw = json.dumps(data)
+        except Exception as e:
+            self.data_raw = None
+
+    def get_json_variables(self):
+        try:
+            return json.loads(self.json_variables)
+        except Exception as e:
+            return None
+
+    def set_json_variables(self, data):
+        try:
+            self.json_variables = json.dumps(data)
+        except Exception as e:
+            self.json_variables = None
 
     def projects(self):
         return Project.objects\

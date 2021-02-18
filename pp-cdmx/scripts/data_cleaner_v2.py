@@ -38,6 +38,7 @@ def cleanSuburbName(text):
     final_name = re.sub(re_uhab, r'(U HAB)', final_name)
     final_name = re.sub(r'\(\s?(FRACCIONAMIENTO)\s?\)', '(FRACC)', final_name)
     final_name = re.sub(ur'\(\s?(AMPLIACION|AMPLIACIÓN)\s?\)', '(AMPL)', final_name)
+    final_name = re.sub(ur'^(COMITE|COMITÉ)\s', '', final_name)
     #Eliminamos la clave en el normal_name (se hace un análisis aparte)
     #La clave de las colonias tiene el formato DD-AAA donde DD es la clave de
     #la alcaldía a dos dígitos AAA es la de la colonia a 3 dígitos.
@@ -156,6 +157,7 @@ def saveFinalProjSuburb_v2(sub_id, row_data, simil=1):
             if idx:
                 # print column_types[idx]["field"]                
                 setattr(final_proy, column_types[idx]["field"], value)
+        final_proy.set_data_raw(row_data)
         final_proy.save()
         for error in row_data["errors"]:
             anomaly, created = Anomaly.objects\

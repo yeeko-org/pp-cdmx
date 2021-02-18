@@ -281,7 +281,8 @@ class PublicAccount(models.Model):
         PPImage.objects.filter(public_account=self)\
             .update(status=None, error_cell=None, len_array_numbers=None,
                     data_row_numbers=None, data_row_suburbs=None,
-                    json_variables=None, table_data=None, headers=None)
+                    #json_variables=None, table_data=None, headers=None
+                    )
 
         self.orphan_rows = None
         self.error_cell = ""
