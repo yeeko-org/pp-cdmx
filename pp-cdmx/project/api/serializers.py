@@ -55,3 +55,24 @@ class FinalProjectSmallSerializer(serializers.ModelSerializer):
             "category_iecm",
         ]
         # depth = 2
+
+
+class FinalProjectOrphanSerializer(serializers.ModelSerializer):
+    suburb_name = serializers.ReadOnlyField(source="suburb.name")
+    suburb_short_name = serializers.ReadOnlyField(source="suburb.short_name")
+
+    project_name_iecm = serializers.ReadOnlyField(source="project.name_iecm")
+    period_pp = serializers.ReadOnlyField(source="period_pp.year")
+
+    class Meta:
+        model = FinalProject
+        fields = [
+            "id",
+            "suburb",
+            "suburb_name",
+            "suburb_short_name",
+            "project",
+            "project_name_iecm",
+            "period_pp",
+        ]
+        # depth = 2

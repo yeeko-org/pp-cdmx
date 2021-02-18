@@ -17,7 +17,7 @@ class PublicAccountAdmin(admin.ModelAdmin):
     list_display = [
         "townhall", "period_pp", "status", "approved", "modified",
         "executed", "vertical_align_ammounts", "unreadable"]
-    inlines = [PPImageInline]
+    # inlines = [PPImageInline]
     list_filter = ["townhall__name", "period_pp__year"]
     list_editable = [
         "approved", "modified", "executed", "vertical_align_ammounts",

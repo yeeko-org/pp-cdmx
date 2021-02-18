@@ -46,3 +46,36 @@ class AmountVariationSuburbsSerializer(serializers.ModelSerializer):
             "suburb",
         ]
         # depth = 2
+
+
+class PublicAccountList(serializers.ModelSerializer):
+    townhall = serializers.ReadOnlyField(source="townhall.name")
+    period_pp = serializers.ReadOnlyField(source="period_pp.year")
+    orphan_rows_count = serializers.SerializerMethodField()
+    def get_orphan_rows_count(self, obj):
+        try:
+            return len(obj.get_orphan_rows())
+        except Exception as e:
+            return None
+    class Meta:
+        model= PublicAccount
+        fields = [
+            "id",
+            "townhall_id",
+            "townhall",
+            "period_pp",
+            "status",
+            "status",
+            "orphan_rows_count"
+        ]
+
+class PublicAccountRetrieve(PublicAccountList):
+    class Meta:
+        model= PublicAccount
+        fields = [
+            "id",
+            "townhall_id",
+            "townhall",
+            "period_pp",
+            "status"
+        ]

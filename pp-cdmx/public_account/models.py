@@ -624,6 +624,13 @@ class PublicAccount(models.Model):
             #       "se reiniciara a []")
             return []
 
+    def set_orphan_rows(self, data):
+        import json
+        try:
+            self.orphan_rows = json.dumps(data)
+        except Exception as e:
+            self.orphan_rows = None
+
     def check_ammounts(self):
         """
         Para aquellas Cuentas Públicas completas (sin missing_subs), ejecutar el
