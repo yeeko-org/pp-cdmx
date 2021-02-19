@@ -154,6 +154,12 @@ class PublicAccount(models.Model):
         max_digits=12, decimal_places=2,
         blank=True, null=True,
         verbose_name=u"Aprobado")
+
+    assigned = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        blank=True, null=True,
+        verbose_name=u"Asignado")
+
     modified = models.DecimalField(
         max_digits=12, decimal_places=2,
         blank=True, null=True,
@@ -191,6 +197,19 @@ class PublicAccount(models.Model):
 
     match_review = models.NullBooleanField(blank=True, null=True)
     suburb_count = models.IntegerField(blank=True, null=True)
+    manual_mach = models.TextField(blank=True, null=True)
+
+    def get_manual_macth(self):
+        try:
+            return json.loads(self.manual_mach)
+        except Exception as e:
+            raise None
+
+    def set_manual_macth(self, data):
+        try:
+            self.manual_mach = json.dumps(data)
+        except Exception as e:
+            self.manual_mach = None
 
     def calculate_means(self):
         from project.models import FinalProject
@@ -1799,12 +1818,10 @@ class PPImage(models.Model):
                     vertices = block.get("vertices")
                     block_top = vertices[0].get("y")
                     block_bot = vertices[3].get("y")
-
                     if block_top >= row_top and block_bot <= row_bot:
                         # palabra completos dentro de los limites
                         row_blocks.append(block)
                         continue
-
                     full = block_bot - block_top
                     if (block_top >= row_top and block_top <= row_bot):
                         # porcion atravezada por bot
@@ -1821,19 +1838,96 @@ class PPImage(models.Model):
                     porcentaje = (fraccion * 100) / full
                     if porcentaje > 60:
                         row_blocks.append(block)
-
+                """
+                En este punto tenemos una nuve ordenada de menor a mayor en y
+                de lineas
+                la primera accion fue concatenarlas en ese orden, suegiendo
+                un problema, algunas veces una sola linea visual tiene
+                una inclinacion que con mucha separa cion forma bloque
+                de lineas separadas en desorden
+                [linea 1 y:200] [linea 2 y:195] [linea 3 y:196]
+                [linea 4 y:220]
+                [linea 5 y:240]
+                resultando en  "linea 2 linea 3 linea 1 linea 4 linea 5"
+                solucion:
+                agrupar las lineas en potenciales lineas mas grandes,
+                ordenando los subgrupos por su pocicion en x
+                """
+                lines_goup=[]
+                for line in row_blocks:
+                    vertices=line.get("vertices")
+                    line["fx"]=vertices[0]["x"]
+                    lyt=vertices[0]["y"]
+                    lyb=vertices[2]["y"]
+                    add_lg=False
+                    for lg in lines_goup:
+                        if lyt>(lg["yt"]) and lyb<(lg["yb"]):
+                            lg["lines"].append(line)
+                            add_lg=True
+                            continue
+                    if add_lg:
+                        continue
+                    margen=float(lyb-lyt)*0.3
+                    new_lines_goup={
+                        "yt": vertices[0]["y"] - margen,
+                        "yb": vertices[2]["y"] + margen,
+                        "lines": [line]
+                    }
+                    lines_goup.append(new_lines_goup)
+                def block_fx(e):
+                    return e['fx']
+                final_lines=[]
+                for line_goup in lines_goup:
+                    lines = line_goup["lines"]
+                    lines.sort(key=block_fx)
+                    final_lines.append(" ".join(
+                        [line.get("w") for line in lines]))
                 line_text = u" ".join(
-                    [line.get("w") for line in row_blocks])
+                    [line for line in final_lines])
                 line_text = line_text.replace(u"\n", " ").strip()
                 row_data.append(line_text)
-
             table_data.append(row_data)
 
         # data["table_data"] = table_data
         # self.json_variables = json.dumps(data)
         # from pprint import pprint
         # pprint (table_data)
+        self.set_table_ref(vertical_limits)
         self.table_data = json.dumps(table_data)
+        self.save()
+
+    def calculate_table_ref(self, limit_position="top"):
+        data = self.get_json_variables()
+        columns_data = data.get("columns_data")
+        if not columns_data:
+            print u"        No se tiene columns_data"
+            return
+
+        columns_data_top = data.get(
+            "columns_data_top", self.calculate_columns_data_top())
+        columns_data_bot = data.get(
+            "columns_data_bot", self.calculate_columns_data_bot())
+        reference_column = data.get(
+            "reference_column", self.calculate_reference_column(
+                columns_data_top, columns_data_bot))
+
+        if limit_position == "top":
+            vertical_limits = self.box_limits_top(
+                reference_column, columns_data_top, columns_data_bot
+            )
+
+        elif limit_position == "center":
+            vertical_limits = self.box_limits_center(
+                reference_column, columns_data_top, columns_data_bot
+            )
+
+        elif limit_position in ["bot", "bottom"]:
+            vertical_limits = self.box_limits_bot(
+                reference_column, columns_data_top, columns_data_bot
+            )
+        else:
+            return
+        self.set_table_ref(vertical_limits)
         self.save()
 
     def box_limits_top(

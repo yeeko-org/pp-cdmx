@@ -171,23 +171,25 @@ class OrphanRowsView(views.APIView):
         done_seqs = []
         match_review = request.data.get("match_review")
 
-        for match in request.data.get("matches", []):
-            suburb = match.get("suburb")
-            seq = match.get("seq")
-            seq_data = seqs.get(seq)
-            if not seq_data:
-                continue
+        # for match in request.data.get("matches", []):
+        #     suburb = match.get("suburb")
+        #     seq = match.get("seq")
+        #     seq_data = seqs.get(seq)
+        #     if not seq_data:
+        #         continue
 
-            saveFinalProjSuburb_v2(suburb, seq_data, simil=-1)
-            done_seqs.append(seq)
+        #     saveFinalProjSuburb_v2(suburb, seq_data, simil=-1)
+        #     done_seqs.append(seq)
 
-        orphan_rows = [seq_data for seq, seq_data in seqs.items()
-                       if not seq in done_seqs]
-        if match_review==True:
-            public_account.match_review=True
-        if match_review==False:
-            public_account.match_review=True
-        public_account.set_orphan_rows(orphan_rows)
+        # orphan_rows = [seq_data for seq, seq_data in seqs.items()
+        #                if not seq in done_seqs]
+        # if match_review==True:
+        #     public_account.match_review=True
+        # if match_review==False:
+        #     public_account.match_review=True
+        # public_account.set_orphan_rows(orphan_rows)
+        
+        public_account.set_manual_macth(match_review)
         public_account.save()
         kwargs["public_account"]=public_account
 

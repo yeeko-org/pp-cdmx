@@ -15,13 +15,14 @@ class PPImageInline(admin.StackedInline):
 class PublicAccountAdmin(admin.ModelAdmin):
     model = PublicAccount
     list_display = [
-        "townhall", "period_pp", "status", "approved", "modified",
+        "townhall", "period_pp", "status", "approved", "assigned", "modified",
         "executed", "vertical_align_ammounts", "unreadable"]
     # inlines = [PPImageInline]
     list_filter = ["townhall__name", "period_pp__year"]
     list_editable = [
-        "approved", "modified", "executed", "vertical_align_ammounts",
+        "approved", "assigned", "modified", "executed",
         "unreadable"]
+    readonly_fields = ["vertical_align_ammounts"]
 admin.site.register(PublicAccount, PublicAccountAdmin)
 
 
@@ -82,6 +83,7 @@ class PPImageAdmin(admin.ModelAdmin):
                 "public_account",
                 "get_image_url",
                 "table_data",
+                "table_ref",
                 "status",
                 "need_manual_ref",
                 "manual_ref",
