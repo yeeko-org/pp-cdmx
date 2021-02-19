@@ -189,6 +189,9 @@ class PublicAccount(models.Model):
 
     no_info = models.NullBooleanField(blank=True, null=True)
 
+    match_review = models.NullBooleanField(blank=True, null=True)
+    suburb_count = models.IntegerField(blank=True, null=True)
+
     def calculate_means(self):
         from project.models import FinalProject
         from django.db.models import Avg

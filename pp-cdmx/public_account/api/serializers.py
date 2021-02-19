@@ -66,6 +66,8 @@ class PublicAccountList(serializers.ModelSerializer):
             "period_pp",
             "status",
             "status",
+            "match_review",
+            "suburb_count",
             "orphan_rows_count"
         ]
 

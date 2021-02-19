@@ -118,11 +118,19 @@ class PublicAccountSetView(MultiSerializerListRetrieveMix):
     def get_queryset(self):
         from django.db.models import Q
         orphan_rows = self.request.query_params.get("orphan_rows")
+        match_review = self.request.query_params.get("match_review")
         queryset = self.queryset
         if orphan_rows:
-            if orphan_rows in ["si", "true"]:
+            if orphan_rows.lower() in ["si", "true"]:
                 queryset = queryset.filter(orphan_rows__isnull=False)\
                     .exclude(Q(orphan_rows="") | Q(orphan_rows="[]"))
+
+        if match_review:
+            if match_review.lower() in ["si", "true"]:
+                queryset=queryset.filter(match_review=True)
+            elif match_review.lower() in ["no", "false"]:
+                queryset=queryset.exclude(match_review=True)
+
         return queryset
 
 
@@ -161,6 +169,7 @@ class OrphanRowsView(views.APIView):
         orphan_rows = public_account.get_orphan_rows()
         seqs = {data.get("seq"): data for data in orphan_rows}
         done_seqs = []
+        match_review = request.data.get("match_review")
 
         for match in request.data.get("matches", []):
             suburb = match.get("suburb")
@@ -174,6 +183,10 @@ class OrphanRowsView(views.APIView):
 
         orphan_rows = [seq_data for seq, seq_data in seqs.items()
                        if not seq in done_seqs]
+        if match_review==True:
+            public_account.match_review=True
+        if match_review==False:
+            public_account.match_review=True
         public_account.set_orphan_rows(orphan_rows)
         public_account.save()
         kwargs["public_account"]=public_account
