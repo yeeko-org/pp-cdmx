@@ -586,7 +586,7 @@ class PublicAccount(models.Model):
         count_rows = [0, 0, 0, 0, 0]
         special_format_count = [0, 0, 0, 0, 0]
         special_formats = []
-        for image in all_images:
+        for image in all_images[:3]:
             for row in image.get_table_data():
                 # Se trabajarán solo con los últimos tres datos
                 for idx, value in enumerate(row[3:]):
@@ -598,12 +598,10 @@ class PublicAccount(models.Model):
 
             # Se puede detarminar una tendencia de tener algún formato
             # especial si existen al menos 5 datos con formato válido
-            if min(count_rows) > 4 or image_num:
-                for idx, col in enumerate(columns_nums):
-                    is_special = special_format_count[
-                        idx] / float(count_rows[idx]) >= 0.75
-                    special_formats.append(is_special)
-                break
+            for idx, col in enumerate(columns_nums):
+                curr_tot = float(count_rows[idx])
+                is_special = special_format_count[idx]/curr_tot >= 0.75 if curr_tot else False
+                special_formats.append(is_special)
         variables["special_formats"] = special_formats
         self.variables = json.dumps(variables)
         self.save()
