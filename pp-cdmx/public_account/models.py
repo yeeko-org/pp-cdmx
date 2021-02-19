@@ -713,6 +713,19 @@ class PPImage(models.Model):
 
     need_second_manual_ref = models.NullBooleanField(blank=True, null=True)
 
+    table_ref = models.TextField(blank=True, null=True)
+
+    def get_table_ref(self):
+        try:
+            return json.loads(self.table_ref)
+        except Exception as e:
+            return []
+    def set_table_ref(self, data):
+        try:
+            self.table_ref = json.dumps(data)
+        except Exception as e:
+            self.table_ref = None
+
     # revicion de referencias ------------------------------------------------
 
     # evaluacion manual de los headers, para marcar cuales fueron erroneos,
