@@ -38,7 +38,7 @@ def cleanSuburbName(text):
     final_name = re.sub(re_uhab, r'(U HAB)', final_name)
     final_name = re.sub(r'\(\s?(FRACCIONAMIENTO)\s?\)', '(FRACC)', final_name)
     final_name = re.sub(ur'\(\s?(AMPLIACION|AMPLIACIÓN)\s?\)', '(AMPL)', final_name)
-    final_name = re.sub(ur'^(COMITE|COMITÉ)\s', '', final_name)
+    final_name = re.sub(ur'^(COMITE|COMITÉ|COLONIA)\s', '', final_name)
     #Eliminamos la clave en el normal_name (se hace un análisis aparte)
     #La clave de las colonias tiene el formato DD-AAA donde DD es la clave de
     #la alcaldía a dos dígitos AAA es la de la colonia a 3 dígitos.
@@ -162,7 +162,7 @@ def saveFinalProjSuburb_v2(sub_id, row_data, simil=1):
         for error in row_data["errors"]:
             anomaly, created = Anomaly.objects\
                 .get_or_create(name=error, is_public=False)
-            AnomalyFinalProject.objects.create(
+            afp, crt2 = AnomalyFinalProject.objects.get_or_create(
                 final_project=final_proy, anomaly=anomaly)
         return sub_id, []
     except Exception as e:
@@ -244,9 +244,10 @@ def calculateNumber(text, column, has_special_format=None):
         try:
             float_value=float(only_ints)
         except Exception as e:
+            errors.append(u"No se pudo converir número en columna %s"%column["title"])
             if only_ints:
                 try:
-                    print "error al convertir en calculateNumber en text: \"%s\""%text
+                    print "error al convertir en calculateNumber: \"%s\""%text
                 except Exception as e:
                     pass
                 print e

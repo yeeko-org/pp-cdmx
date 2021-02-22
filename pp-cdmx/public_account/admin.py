@@ -74,7 +74,7 @@ class PPImageAdmin(admin.ModelAdmin):
     search_fields = [
         "path", "public_account__townhall__name",
         "finalproject__suburb__name"]
-    #inlines = [FinalProjectInline]
+    inlines = [FinalProjectInline]
     raw_id_fields = ["public_account"]
     readonly_fields = ["get_image_url"]
     fieldsets = [

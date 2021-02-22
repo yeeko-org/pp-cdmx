@@ -287,7 +287,7 @@ class PublicAccount(models.Model):
         return u"%s -- %s" % (self.period_pp, self.townhall)
 
     def reset(self, all_images=None):
-        from project.models import FinalProject
+        from project.models import FinalProject, AnomalyFinalProject
 
         query_final_p = FinalProject.objects\
             .filter(suburb__townhall=self.townhall,
@@ -299,6 +299,14 @@ class PublicAccount(models.Model):
             image=None, similar_suburb_name=None, error_cell="",
             inserted_data=False, approved=None, modified=None,
             executed=None, progress=None, variation=None)
+
+        #Se eliminan las anomalías pasadas.
+        #claves, columna
+        AnomalyFinalProject.objects\
+            .filter(final_project__in=query_final_p, anomaly__is_public=False)\
+            .exclude(anomaly__name__icontains="IECM")\
+            .delete()
+        #AnomalyFinalProject.objects.filter(public_account=self).delete()
 
         PPImage.objects.filter(public_account=self)\
             .update(status=None, error_cell=None, len_array_numbers=None,
@@ -532,7 +540,8 @@ class PublicAccount(models.Model):
                     "seq": seq,
                     "data": row_data,
                     "errors": errors,
-                    "image_id": image.id
+                    "image_id": image.id,
+                    "raw": row
                 }
                 new_sub_id = None
                 if sub_id:
@@ -604,10 +613,10 @@ class PublicAccount(models.Model):
         # Se trabajará solo con las columnas numéricas, que son las últimas 5
         count_rows = [0, 0, 0, 0, 0]
         special_format_count = [0, 0, 0, 0, 0]
-        special_formats = []
+        special_formats = [False, False, False, False, False]
         for image in all_images[:3]:
             for row in image.get_table_data():
-                # Se trabajarán solo con los últimos tres datos
+                # Se trabajarán solo con los las últimas 5 columnas
                 for idx, value in enumerate(row[3:]):
                     sum_col = calculateNumber(value, columns_nums[idx])
                     # Solo se sumarán si la función arrojó algún número
@@ -617,10 +626,10 @@ class PublicAccount(models.Model):
 
             # Se puede detarminar una tendencia de tener algún formato
             # especial si existen al menos 5 datos con formato válido
-            for idx, col in enumerate(columns_nums):
-                curr_tot = float(count_rows[idx])
-                is_special = special_format_count[idx]/curr_tot >= 0.75 if curr_tot else False
-                special_formats.append(is_special)
+        for idx, col in enumerate(columns_nums):
+            curr_tot = float(count_rows[idx])
+            is_special = special_format_count[idx]/curr_tot >= 0.75 if curr_tot else False
+            special_formats.append(is_special)
         variables["special_formats"] = special_formats
         self.variables = json.dumps(variables)
         self.save()
@@ -690,7 +699,7 @@ class PublicAccount(models.Model):
             anomaly_text = "Totales no cuadran"
             print anomaly_text
             anomaly, is_created = Anomaly.objects\
-                .get_or_create(name=anomaly_text)
+                .get_or_create(name=anomaly_text, is_public=False)
             anomaly_final_project, is_created=AnomalyFinalProject.objects\
                 .get_or_create(
                     anomaly=anomaly,

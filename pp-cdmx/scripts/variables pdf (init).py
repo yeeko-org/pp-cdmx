@@ -187,3 +187,251 @@ for column in results["columns_data"]:
 
 
 
+
+############### NUEVOS EJERCICIOS FEBRERO 2021 ######################
+
+
+from public_account.models import PublicAccount, PPImage
+from pprint import pprint
+import json
+
+
+PPImage.objects.filter(need_manual_ref=True).update(need_second_manual_ref=True)
+
+img_pev=None
+for image in PPImage.objects.filter(need_manual_ref=True,
+    manual_ref__isnull=False).exclude(id=129):
+    if img_pev:
+        img_pev.manual_ref=image.manual_ref
+    img_pev=image
+    image.save()
+
+
+from public_account.models import PublicAccount, PPImage
+from pprint import pprint
+import json
+img_prev=None
+for image in PPImage.objects.filter(need_manual_ref=True, 
+    manual_ref__isnull=False).exclude(id=129):
+    if img_prev:
+        img_prev.manual_ref=image.manual_ref
+        img_prev.save()
+    img_prev=image
+
+
+
+
+from public_account.models import PublicAccount, PPImage
+#public_accounts=PublicAccount.objects.filter(id__in=[93, 25, 95])
+public_accounts=PublicAccount.objects.filter(id__in=[46])
+for pa in public_accounts:
+  pa.column_formatter_v2(True)
+
+
+from project.models import FinalProject
+from public_account.models import PublicAccount, PPImage
+
+#for pa in PublicAccount.objects.all():
+for pa in PublicAccount.objects.filter(id__in=[46]):
+    sum_complete = 0
+    print "    ----------->   %s - %s   <----------"%(pa.period_pp, pa.townhall)
+    for image in PPImage.objects.filter(public_account=pa):
+        complete = FinalProject.objects.filter(image=image).count()
+        sum_complete+=complete
+        if not complete:
+            print image.path
+    ths = FinalProject.objects.filter(period_pp=pa.period_pp,
+      suburb__townhall=pa.townhall).count()
+    #print "%s / %s"%(sum_complete, ths)
+    print round(sum_complete/float(ths) * 100 , 1)
+
+
+
+
+from project.models import AnomalyFinalProject, FinalProject
+from public_account.models import PublicAccount
+from classification.models import Anomaly
+
+AnomalyFinalProject.objects.all().count()
+
+
+pa_with_anoms = PublicAccount.objects.filter(anomalyfinalproject__isnull=False)
+
+
+
+#Eliminaré todas las anomalías asociadas a un proyecto
+
+all_fp_anoms = AnomalyFinalProject.objects\
+    .filter(final_project__isnull=False, anomaly__is_public=False)\
+    .exclude(anomaly__name__icontains="IECM")
+
+filter_fp_anoms = AnomalyFinalProject.objects\
+    .filter(final_project__isnull=False, anomaly__is_public=False)\
+    .exclude(anomaly__name__icontains="IECM")\
+    .exclude(anomaly__name__icontains="Vari")
+
+all_fp_anoms.count()
+#21170
+
+#para borrar las asociaciones previas
+all_fp_anoms.delete()
+
+fp_with_anoms = FinalProject.objects\
+    .filter(anomalyfinalproject__in=all_fp_anoms)
+
+print fp_with_anoms.distinct().count()
+
+fp_with_normal_anoms = FinalProject.objects\
+    .filter(anomalyfinalproject__in=filter_fp_anoms)
+
+print fp_with_normal_anoms.distinct().count()
+
+
+
+
+#Comprobación de las anomalías a borrar
+anoms = Anomaly.objects.filter(anomalyfinalproject__in=all_fp_anoms).distinct()
+print anoms
+
+for anom in anoms:
+    print anom
+    print all_fp_anoms.filter(anomaly=anom).count()
+
+
+
+#Recalcular las anomalías:
+
+
+all_fp = FinalProject.objects.filter(data_raw__isnull=False)
+
+for fp in all_fp:
+    data_raw = fp.get_data_raw()
+    try:
+        errors = data_raw["errors"]
+    except Exception as e:
+        continue
+    for error in errors:
+        anomaly, created = Anomaly.objects\
+            .get_or_create(name=error, is_public=False)
+        afp, crt2 = AnomalyFinalProject.objects.get_or_create(
+            final_project=fp, anomaly=anomaly)
+
+
+fp_with_var = FinalProject.objects.filter(variation__isnull=False).values("variation")
+
+list_var2 = fp_with_var.distinct()
+list_var3 = list(list_var2)
+
+newlist = sorted(list_var3, key=lambda x: x["variation"], reverse=True)
+
+for fp in newlist:
+    print fp["variation"]
+
+list_var = list(fp_with_var)
+
+len(list_var)
+
+
+
+
+from project.models import FinalProject
+
+>>> FinalProject.objects.filter(image__isnull=False).count()
+10001
+>>> FinalProject.objects.filter(image__isnull=True).count()
+871
+
+
+
+from public_account.models import PPImage, PublicAccount
+
+for public_account in PublicAccount.objects.all():
+    public_account.column_formatter_v2(True)
+
+special_pa = PublicAccount.objects.get(id=82)
+special_pa.column_formatter_v2(True)
+
+>>> FinalProject.objects.filter(image__isnull=False).count()
+10029
+>>> FinalProject.objects.filter(image__isnull=True).count()
+843
+
+
+
+PPImage.objects.filter(manual_ref__isnull=False).count()
+
+Casos sin resolver:
+
+
+No confiar en las claves de la siguiente cuenta pública:
+----Cuenta publica 2017 -- IZP, id: 82----
+
+Todo mal con table_data:
+2014 -- AO PP-2014-AO_0003.png 876
+
+2016 -- AZC PP-2016-AZC_0003.png 548
+2016 -- AZC PP-2016-AZC_0004.png 549
+2016 -- AZC PP-2016-AZC_0005.png 550
+2016 -- AZC PP-2016-AZC_0006.png 551
+2016 -- AZC PP-2016-AZC_0007.png 552
+2016 -- AZC PP-2016-AZC_0008.png 553
+2016 -- AZC PP-2016-AZC_0009.png 554
+2016 -- AZC PP-2016-AZC_0010.png 555
+2016 -- AZC PP-2016-AZC_0011.png 556
+
+
+2016 -- XO PP-2016-XO_0004.png 738
+
+
+    2015 -- GAM PP-2015-GAM_0002.png 781
+error al convertir en calculateNumber: "407,510.00  100.0 %"
+invalid literal for float(): 407.510.00100.0
+error al convertir en calculateNumber: "407,510.00  100.0 %"
+invalid literal for float(): 407.510.00100.0
+
+
+    2016 -- BJ PP-2016-BJ_0005.png 561
+error al convertir en calculateNumber: "100.0  100.0"
+invalid literal for float(): 100.0100.0
+
+----Cuenta publica 2016 -- COY, id: 54----
+    2016 -- COY PP-2016-COY_0001.png 567
+error al convertir en calculateNumber: "99.70  99.70"
+invalid literal for float(): 99.7099.70
+error al convertir en calculateNumber: "95.98 99.70  99.98"
+invalid literal for float(): 95.9899.7099.9
+    2016 -- COY PP-2016-COY_0002.png 568
+error al convertir en calculateNumber: "99.98  99.98"
+invalid literal for float(): 99.9899.9
+    2016 -- COY PP-2016-COY_0003.png 569
+error al convertir en calculateNumber: "100.00  100.00"
+invalid literal for float(): 100.00100.00
+error al convertir en calculateNumber: "99,94 99.98  99.94"
+invalid literal for float(): 99.9499.9899.9
+    2016 -- COY PP-2016-COY_0004.png 570
+error al convertir en calculateNumber: "97.62 99.88 99.40 200.00  97.62"
+invalid literal for float(): 97.6299.8899.40200.0097.62
+    2016 -- COY PP-2016-COY_0005.png 571
+error al convertir en calculateNumber: "100.00  100.00"
+invalid literal for float(): 100.00100.00
+    2016 -- COY PP-2016-COY_0006.png 572
+error al convertir en calculateNumber: "200.00  100.00"
+invalid literal for float(): 200.00100.00
+error al convertir en calculateNumber: "200.00  100.00"
+invalid literal for float(): 200.00100.00
+error al convertir en calculateNumber: "100.00  100.00"
+invalid literal for float(): 100.00100.00
+    2016 -- COY PP-2016-COY_0007.png 573
+error al convertir en calculateNumber: "9.36  99.36"
+invalid literal for float(): 9.3699.36
+error al convertir en calculateNumber: "99.86  99.86"
+invalid literal for float(): 99.8699.86
+
+
+    2019 -- AZC PP-2019-AZC_0006.png 395
+error al convertir en calculateNumber: "100 %  100 %"
+
+
+    2019 -- XO PP-2019-XO_0003.png 533
+error al convertir en calculateNumber: "100 %  10000 %"
+invalid literal for float(): 100%10000

@@ -10,7 +10,7 @@ class AnomalyFinalProjectInline(admin.TabularInline):
     model = AnomalyFinalProject
     show_change_link = True
     extra = 0
-    raw_id_fields = ["anomaly"]
+    raw_id_fields = ["anomaly", "public_account"]
     #classes = ['collapse']
 
 
@@ -74,12 +74,15 @@ class FinalProjectAdmin(admin.ModelAdmin):
             "classes": ["collapse"],
             "fields": [
                 "image", "similar_suburb_name", "name_in_pa",
-                "json_variables", "error_cell", "inserted_data"
+                "json_variables", "error_cell", "inserted_data",
+                "data_raw"
             ]
         }]
     ]
     inlines = [AnomalyFinalProjectInline]
-    raw_id_fields = ["suburb", "period_pp", "project", "user_validation"]
+    raw_id_fields = [
+        "suburb", "period_pp", "image", "project", "user_validation"
+    ]
 
     def display_anomalyfinalprojectinline(self, obj):
         from django.utils.html import format_html
