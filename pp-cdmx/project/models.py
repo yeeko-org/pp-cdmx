@@ -29,6 +29,8 @@ class Project(models.Model):
         blank=True,
         null=True,
         verbose_name=u"Categoria IECM")
+    #votes_mro = models.IntegerField(default=0, verbose_name=u"Votos físicos")
+    #votes_int = models.IntegerField(default=0, verbose_name=u"Votos internet")
     votes = models.IntegerField(default=0, verbose_name=u"Votos")
     is_winer = models.BooleanField(
         default=False, verbose_name=u"Es el ganador")
