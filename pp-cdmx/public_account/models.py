@@ -198,6 +198,7 @@ class PublicAccount(models.Model):
     match_review = models.NullBooleanField(blank=True, null=True)
     suburb_count = models.IntegerField(blank=True, null=True)
     manual_mach = models.TextField(blank=True, null=True)
+    comment_match = models.TextField(blank=True, null=True)
 
     def get_manual_macth(self):
         try:

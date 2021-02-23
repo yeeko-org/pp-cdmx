@@ -127,9 +127,9 @@ class PublicAccountSetView(MultiSerializerListRetrieveMix):
 
         if match_review:
             if match_review.lower() in ["si", "true"]:
-                queryset=queryset.filter(match_review=True)
+                queryset = queryset.filter(match_review=True)
             elif match_review.lower() in ["no", "false"]:
-                queryset=queryset.exclude(match_review=True)
+                queryset = queryset.exclude(match_review=True)
 
         return queryset
 
@@ -151,14 +151,19 @@ class OrphanRowsView(views.APIView):
         public_account = kwargs.get(
             "public_account", self.get_object(request, **kwargs))
 
-        fp_query = FinalProject.objects.filter(
-            suburb__townhall=public_account.townhall,
-            period_pp=public_account.period_pp,
-            image__isnull=True).prefetch_related("project", "suburb")
+        fp_query = FinalProject.objects\
+            .filter(
+                suburb__townhall=public_account.townhall,
+                period_pp=public_account.period_pp,
+                image__isnull=True)\
+            .order_by("suburb__short_name")\
+            .prefetch_related("project", "suburb")
+
         final_projects = FinalProjectOrphanSerializer(fp_query, many=True)
 
         return Response({
             "public_account_id": public_account.id,
+            "comment_match": public_account.comment_match,
             "orphan_rows": public_account.get_orphan_rows(),
             "final_projects": final_projects.data
         })
@@ -170,27 +175,28 @@ class OrphanRowsView(views.APIView):
         seqs = {data.get("seq"): data for data in orphan_rows}
         done_seqs = []
         match_review = request.data.get("match_review")
+        comment_match = request.data.get("comment_match")
 
-        # for match in request.data.get("matches", []):
-        #     suburb = match.get("suburb")
-        #     seq = match.get("seq")
-        #     seq_data = seqs.get(seq)
-        #     if not seq_data:
-        #         continue
+        for match in request.data.get("matches", []):
+            suburb = match.get("suburb")
+            seq = match.get("seq")
+            seq_data = seqs.get(seq)
+            if not seq_data:
+                continue
 
-        #     saveFinalProjSuburb_v2(suburb, seq_data, simil=-1)
-        #     done_seqs.append(seq)
+            saveFinalProjSuburb_v2(suburb, seq_data, simil=-1)
+            done_seqs.append(seq)
 
-        # orphan_rows = [seq_data for seq, seq_data in seqs.items()
-        #                if not seq in done_seqs]
-        # if match_review==True:
-        #     public_account.match_review=True
-        # if match_review==False:
-        #     public_account.match_review=True
-        # public_account.set_orphan_rows(orphan_rows)
-        
+        orphan_rows = [seq_data for seq, seq_data in seqs.items()
+                       if not seq in done_seqs]
+        if match_review == True:
+            public_account.match_review = True
+        if match_review == False:
+            public_account.match_review = True
+        public_account.set_orphan_rows(orphan_rows)
+        public_account.comment_match = comment_match
         public_account.set_manual_macth(match_review)
         public_account.save()
-        kwargs["public_account"]=public_account
+        kwargs["public_account"] = public_account
 
         return self.get(request, **kwargs)
