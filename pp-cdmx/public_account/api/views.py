@@ -191,11 +191,11 @@ class OrphanRowsView(views.APIView):
                        if not seq in done_seqs]
         if match_review == True:
             public_account.match_review = True
-        if match_review == False:
-            public_account.match_review = True
+        elif match_review == False:
+            public_account.match_review = False
         public_account.set_orphan_rows(orphan_rows)
         public_account.comment_match = comment_match
-        public_account.set_manual_macth(match_review)
+        public_account.set_manual_macth(request.data)
         public_account.save()
         kwargs["public_account"] = public_account
 
