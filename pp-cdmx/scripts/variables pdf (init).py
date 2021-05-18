@@ -348,14 +348,20 @@ from public_account.models import PPImage, PublicAccount
 for public_account in PublicAccount.objects.all():
     public_account.column_formatter_v2(True)
 
-special_pa = PublicAccount.objects.get(id=82)
+special_pa = PublicAccount.objects.get(id=40)
 special_pa.column_formatter_v2(True)
 
 >>> FinalProject.objects.filter(image__isnull=False).count()
-10029
+10024
 >>> FinalProject.objects.filter(image__isnull=True).count()
 843
 
+>>> FinalProject.objects.filter(image__isnull=False).count()
+10087
+>>> FinalProject.objects.filter(image__isnull=True).count()
+785
+
+10872
 
 
 PPImage.objects.filter(manual_ref__isnull=False).count()
@@ -365,6 +371,7 @@ Casos sin resolver:
 
 No confiar en las claves de la siguiente cuenta pública:
 ----Cuenta publica 2017 -- IZP, id: 82----
+----Cuenta publica 2015 -- MC, id: 40----
 
 Todo mal con table_data:
 2014 -- AO PP-2014-AO_0003.png 876
@@ -435,3 +442,31 @@ error al convertir en calculateNumber: "100 %  100 %"
     2019 -- XO PP-2019-XO_0003.png 533
 error al convertir en calculateNumber: "100 %  10000 %"
 invalid literal for float(): 100%10000
+
+
+
+
+from public_account.models import PublicAccount, PPImage
+
+ids=[58]
+
+for public_account in PublicAccount.objects.filter(id__in=ids):
+    PPImage.objects.filter(public_account=public_account)\
+        .update(need_second_manual_ref=True)
+
+
+from public_account.models import PublicAccount, PPImage
+
+ppimage_ids=[876, 548, 549, 550, 551, 552, 553, 554, 555, 556, 738]
+
+for image in PPImage.objects.filter(id__in=ppimage_ids).order_by("id"):
+    image.get_data_from_columns_mr()
+    image.calculate_table_data(limit_position=image.public_account.vertical_align_ammounts)
+    print image
+
+for public_account in PublicAccount.objects.filter(ppimage__id__in=ppimage_ids).distinct():
+    public_account.column_formatter_v2(reset=True)
+
+for public_account in PublicAccount.objects.all():
+    public_account.calculate_means()
+
