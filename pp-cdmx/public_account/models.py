@@ -740,12 +740,15 @@ class PPImage(models.Model):
 
     need_second_manual_ref = models.NullBooleanField(blank=True, null=True)
 
+    validated = models.NullBooleanField(blank=True, null=True)
+
     table_ref = models.TextField(
         verbose_name=u"Referencia de filas",
         blank=True, null=True,)
     table_ref_columns = models.TextField(
         verbose_name=u"Referencias de Columnas",
         blank=True, null=True)
+    comments = models.TextField(blank=True, null=True)
 
     def get_table_ref(self):
         try:
