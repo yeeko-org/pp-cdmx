@@ -771,9 +771,9 @@ class PPImage(models.Model):
             columns_boxs = data.get("columns_boxs")
             if isinstance(columns_boxs, list) and columns_boxs:
                 first_column = columns_boxs[0]
-                table_ref_columns = [first_column.get("right", 0)]
+                table_ref_columns = [first_column.get("left", 0)]
                 for column in columns_boxs:
-                    table_ref_columns.append(column.get("left", 0))
+                    table_ref_columns.append(column.get("right", 0))
 
         if table_ref_columns:
             self.table_ref_columns = json.dumps(table_ref_columns)
