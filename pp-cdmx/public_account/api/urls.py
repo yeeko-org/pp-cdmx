@@ -3,9 +3,10 @@ from django.conf.urls import url, include
 
 from .views import (
     NextView, AmountVariationView, AmountVariationTownhallView,
-    PublicAccountSetView, OrphanRowsView)
+    PublicAccountSetView, PPImageSetView, OrphanRowsView)
 
 router = routers.DefaultRouter()
+router.register(r"image", PPImageSetView)
 router.register(r"", PublicAccountSetView)
 
 urlpatterns = [

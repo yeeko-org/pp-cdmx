@@ -714,7 +714,7 @@ class PublicAccount(models.Model):
 
 
 class PPImage(models.Model):
-    public_account = models.ForeignKey(PublicAccount)
+    public_account = models.ForeignKey(PublicAccount, related_name=u"pp_images")
     path = models.CharField(max_length=255)
     json_variables = models.TextField(blank=True, null=True)
 

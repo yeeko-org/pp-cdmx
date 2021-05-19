@@ -39,6 +39,35 @@ class FinalProjectSerializer(serializers.ModelSerializer):
         # depth = 2
 
 
+class FinalProjectSimpleSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = FinalProject
+        fields = [
+            "id",
+            "final_name",
+            "project_cp",
+            "observation",
+            "validated",
+            "suburb",
+            "project",
+            "description_cp",
+            "progress",
+            "approved",
+            "modified",
+            "executed",
+            "variation",
+        ]
+        read_only_fields = [
+            "id",
+            "final_name",
+            "project_cp",
+            "observation",
+            "validated",
+        ]
+        # depth = 2
+
+
 class FinalProjectSmallSerializer(serializers.ModelSerializer):
     category_iecm = serializers.ReadOnlyField(
         source="project.category_iecm_id", default=None)

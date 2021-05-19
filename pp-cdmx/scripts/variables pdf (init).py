@@ -464,7 +464,7 @@ for image in PPImage.objects.filter(id__in=ppimage_ids).order_by("id"):
     image.calculate_table_data(limit_position=image.public_account.vertical_align_ammounts)
     print image
 
-for public_account in PublicAccount.objects.filter(ppimage__id__in=ppimage_ids).distinct():
+for public_account in PublicAccount.objects.filter(pp_images__id__in=ppimage_ids).distinct():
     public_account.column_formatter_v2(reset=True)
 
 for public_account in PublicAccount.objects.all():

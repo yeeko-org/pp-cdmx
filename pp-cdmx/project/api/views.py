@@ -1,10 +1,23 @@
 # -*- coding: utf-8 -*-
 from . import serializers
-from rest_framework.response import Response
-from rest_framework import (permissions, views, status)
 
-from project.models import (FinalProject)
+from api.mixins import MultiSerializerListRetrieveUpdateMix
+from api.pagination import (
+    HeavyResultsSetPagination, StandardResultsSetPagination)
+
+from rest_framework import (permissions, views)
+from rest_framework.response import Response
+
 from period.models import PeriodPP
+
+from project.models import FinalProject
+
+
+class FinalProjectViewSet(MultiSerializerListRetrieveUpdateMix):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = serializers.FinalProjectSimpleSerializer
+    queryset = FinalProject.objects.all()
+    pagination_class = StandardResultsSetPagination
 
 
 class FinalProjectView(views.APIView):
