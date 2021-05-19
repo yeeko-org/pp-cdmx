@@ -81,3 +81,41 @@ class PublicAccountRetrieve(PublicAccountList):
             "period_pp",
             "status"
         ]
+
+class PPImageSimpleSerializer(PublicAccountList):
+    json_variables = serializers.SerializerMethodField()
+    def get_json_variables(self, obj):
+        try:
+            return obj.get_json_variables()
+        except Exception as e:
+            return None
+    manual_ref = serializers.SerializerMethodField()
+    def get_manual_ref(self, obj):
+        try:
+            return obj.get_manual_ref()
+        except Exception as e:
+            return None
+    table_data = serializers.SerializerMethodField()
+    def get_table_data(self, obj):
+        try:
+            return obj.get_table_data()
+        except Exception as e:
+            return None
+
+    table_ref = serializers.SerializerMethodField()
+    def get_table_ref(self, obj):
+        try:
+            return obj.get_table_ref()
+        except Exception as e:
+            return None
+
+    class Meta:
+        model= PPImage
+        fields = [
+            "id",
+            "path",
+            "json_variables",
+            "table_data",
+            "table_ref",
+            "manual_ref",
+        ]

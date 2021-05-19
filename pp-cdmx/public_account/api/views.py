@@ -134,6 +134,52 @@ class PublicAccountSetView(MultiSerializerListRetrieveMix):
         return queryset
 
 
+class ImageRefsView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = serializers.PPImageSimpleSerializer
+
+    def get_object(self, request, **kwargs):
+        from public_account.models import PPImage
+        try:
+            pp_image = PPImage.objects.get(
+                id=kwargs.get("image_id"))
+        except Exception as e:
+            raise NotFound()
+        return pp_image
+
+    def get(self, request, **kwargs):
+        from project.models import FinalProject
+        from project.api.serializers import (FinalProjectRefsSerializer,
+            FinalProjectOrphanSerializer)
+        pp_image = kwargs.get(
+            "pp_image", self.get_object(request, **kwargs))
+
+        fp_image_query = FinalProject.objects\
+            .filter(image=pp_image)\
+            .prefetch_related("project", "suburb")
+
+        final_projects = FinalProjectRefsSerializer(fp_image_query, many=True)
+        
+        fp_orphan_query = FinalProject.objects\
+            .filter(
+                suburb__townhall=pp_image.public_account.townhall,
+                period_pp=pp_image.public_account.period_pp,
+                image__isnull=True)\
+            .order_by("suburb__short_name")\
+            .prefetch_related("project", "suburb")
+
+        orphan_suburbs = FinalProjectOrphanSerializer(fp_orphan_query, many=True)
+
+        image_data = serializers.PPImageSimpleSerializer(pp_image).data
+
+        return Response({
+            "image": image_data,
+            "orphan_rows": pp_image.public_account.get_orphan_rows(),
+            "final_projects": final_projects.data,
+            "orphan_suburbs": orphan_suburbs.data,
+        })
+
+
 class OrphanRowsView(views.APIView):
     permission_classes = [permissions.AllowAny]
 

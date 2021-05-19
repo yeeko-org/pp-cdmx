@@ -6,10 +6,12 @@ from classification.models import CategoryIECM
 import csv
 
 from project_data import project_data  
-
+new_suburb= ["04-057", "08-054", "08-055", "16-020"]
 for data in project_data:
-    period_pp_year = data.get("period_pp_year")
     suburb_cve_col = data.get("suburb_cve_col")
+    if suburb_cve_col not in new_suburb:
+        continue
+    period_pp_year = data.get("period_pp_year")
     project_id = data.get("project_id") or None
     category_iecm_name = data.get("category_iecm_name")
     name_iecm = data.get("name_iecm")

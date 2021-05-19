@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from rest_framework import serializers
 
-from project.models import (Project, FinalProject)
+from project.models import (Project, FinalProject, AnomalyFinalProject)
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -74,5 +74,62 @@ class FinalProjectOrphanSerializer(serializers.ModelSerializer):
             "project",
             "project_name_iecm",
             "period_pp",
+            "image",
         ]
         # depth = 2
+
+
+class AnomalyFinalProjectSerializer(serializers.ModelSerializer):
+    from classification.api.serializers import AnomalySerializer
+    anomaly = AnomalySerializer()
+
+    class Meta:
+        model = AnomalyFinalProject
+        fields = "__all__"
+        # depth = 2
+
+class FinalProjectRefsSerializer(serializers.ModelSerializer):
+    suburb_name = serializers.ReadOnlyField(source="suburb.name")
+
+    period_pp = serializers.ReadOnlyField(source="period_pp.year")
+    data_raw = serializers.SerializerMethodField()
+    def get_data_raw(self, obj):
+        try:
+            return obj.get_data_raw()
+        except Exception as e:
+            return None
+    anomalies = serializers.SerializerMethodField()
+    def get_anomalies(self, obj):
+        try:
+            anoms_fp = AnomalyFinalProject.objects.filter(final_project=obj, 
+                    anomaly__is_public=False).exclude(anomaly__id=21)
+            return AnomalyFinalProjectSerializer(anoms_fp,many=True).data
+        except Exception as e:
+            return None
+
+    class Meta:
+        model = FinalProject
+        fields = [
+            "id",
+            "suburb",
+            "suburb_name",
+            "project",
+            "period_pp",
+            "description_cp",
+            "project_cp",
+            "final_name",
+            "assigned",
+            "approved",
+            "modified",
+            "executed",
+            "variation",
+            "progress",
+            "validated",
+            "variation_calc",
+            "data_raw",
+            "anomalies",
+            "anomalies",
+        ]
+
+
+
