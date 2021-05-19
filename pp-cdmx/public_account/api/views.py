@@ -123,6 +123,7 @@ class PublicAccountSetView(MultiSerializerListRetrieveMix):
         from django.db.models import Q
         orphan_rows = self.request.query_params.get("orphan_rows")
         match_review = self.request.query_params.get("match_review")
+        year = self.request.query_params.get("year")
         queryset = self.queryset
         if orphan_rows:
             if orphan_rows.lower() in ["si", "true"]:
@@ -134,6 +135,9 @@ class PublicAccountSetView(MultiSerializerListRetrieveMix):
                 queryset = queryset.filter(match_review=True)
             elif match_review.lower() in ["no", "false"]:
                 queryset = queryset.exclude(match_review=True)
+
+        if year:
+            queryset = queryset.filter(period_pp__year=year)
 
         return queryset.prefetch_related(
             "townhall", "period_pp", "pp_images")

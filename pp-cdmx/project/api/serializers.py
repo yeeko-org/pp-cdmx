@@ -46,7 +46,6 @@ class FinalProjectSimpleSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "final_name",
-            "project_cp",
             "observation",
             "validated",
             "suburb",
@@ -57,13 +56,6 @@ class FinalProjectSimpleSerializer(serializers.ModelSerializer):
             "modified",
             "executed",
             "variation",
-        ]
-        read_only_fields = [
-            "id",
-            "final_name",
-            "project_cp",
-            "observation",
-            "validated",
         ]
         # depth = 2
 
