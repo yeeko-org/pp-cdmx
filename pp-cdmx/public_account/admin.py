@@ -84,6 +84,7 @@ class PPImageAdmin(admin.ModelAdmin):
                 "get_image_url",
                 "table_data",
                 "table_ref",
+                "table_ref_columns",
                 "status",
                 "need_manual_ref",
                 "manual_ref",

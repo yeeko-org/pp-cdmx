@@ -714,7 +714,7 @@ class PublicAccount(models.Model):
 
 
 class PPImage(models.Model):
-    public_account = models.ForeignKey(PublicAccount)
+    public_account = models.ForeignKey(PublicAccount, related_name=u"pp_images")
     path = models.CharField(max_length=255)
     json_variables = models.TextField(blank=True, null=True)
 
@@ -740,18 +740,47 @@ class PPImage(models.Model):
 
     need_second_manual_ref = models.NullBooleanField(blank=True, null=True)
 
-    table_ref = models.TextField(blank=True, null=True)
+    validated = models.NullBooleanField(blank=True, null=True)
+
+    table_ref = models.TextField(
+        verbose_name=u"Referencia de filas",
+        blank=True, null=True,)
+    table_ref_columns = models.TextField(
+        verbose_name=u"Referencias de Columnas",
+        blank=True, null=True)
+    comments = models.TextField(blank=True, null=True)
 
     def get_table_ref(self):
         try:
             return json.loads(self.table_ref)
         except Exception as e:
             return []
+
     def set_table_ref(self, data):
         try:
             self.table_ref = json.dumps(data)
         except Exception as e:
             self.table_ref = None
+
+    def calculate_table_ref_columns(self):
+        manual_ref = self.get_manual_ref()
+        table_ref_columns = None
+        if manual_ref:
+            table_ref_columns = [manual_ref.get("right")]
+            table_ref_columns += manual_ref.get("divisors")
+            table_ref_columns += [manual_ref.get("left")]
+        else:
+            data = self.get_json_variables()
+            columns_boxs = data.get("columns_boxs")
+            if isinstance(columns_boxs, list) and columns_boxs:
+                first_column = columns_boxs[0]
+                table_ref_columns = [first_column.get("left", 0)]
+                for column in columns_boxs:
+                    table_ref_columns.append(column.get("right", 0))
+
+        if table_ref_columns:
+            self.table_ref_columns = json.dumps(table_ref_columns)
+            self.save()
 
     # revicion de referencias ------------------------------------------------
 

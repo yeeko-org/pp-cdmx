@@ -23,7 +23,7 @@ class ProjectAdmin(admin.ModelAdmin):
     list_filter = ["suburb__townhall", "category_iecm"]
     search_fields = [
         "suburb__name", "suburb__townhall__name",
-        "category_iecm__name"]
+        "category_iecm__name", "name_iecm"]
 admin.site.register(Project, ProjectAdmin)
 
 

@@ -8,13 +8,17 @@ from rest_framework.response import Response
 from django.conf import settings as dj_settings
 
 from api.mixins import MultiSerializerListRetrieveMix
+from api.mixins import MultiSerializerListRetrieveUpdateMix as ListRetrieveUpdateMix
 
 from geographic.models import TownHall
 
-from public_account.models import PublicAccount
+from public_account.models import PublicAccount, PPImage
 
 from project.models import FinalProject
 
+
+from api.pagination import (StandardResultsSetPagination,
+                            HeavyResultsSetPagination)
 
 class NextView(views.APIView):
     permission_classes = [permissions.AllowAny]
@@ -131,7 +135,8 @@ class PublicAccountSetView(MultiSerializerListRetrieveMix):
             elif match_review.lower() in ["no", "false"]:
                 queryset = queryset.exclude(match_review=True)
 
-        return queryset
+        return queryset.prefetch_related(
+            "townhall", "period_pp", "pp_images")
 
 
 class ImageRefsView(views.APIView):
@@ -246,3 +251,13 @@ class OrphanRowsView(views.APIView):
         kwargs["public_account"] = public_account
 
         return self.get(request, **kwargs)
+
+
+class PPImageSetView(ListRetrieveUpdateMix):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = serializers.PPImageSerializer
+    queryset = PPImage.objects.all()
+    pagination_class = StandardResultsSetPagination
+    action_serializers = {
+        "update": serializers.PPImageUpdateSerializer
+    }

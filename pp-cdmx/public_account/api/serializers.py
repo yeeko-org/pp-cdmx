@@ -48,10 +48,37 @@ class AmountVariationSuburbsSerializer(serializers.ModelSerializer):
         # depth = 2
 
 
+
+from geographic.api.serializers import TownHallSerializer, PeriodPPSerializer
+
+class PPImageSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = PPImage
+        fields = [
+            "id",
+            "validated",
+            "path",
+        ]
+
+class PPImageUpdateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = PPImage
+        fields = [
+            "id",
+            "validated",
+            "path",
+            "comments"
+        ]
+        read_only_fields = ["path"]
+
 class PublicAccountList(serializers.ModelSerializer):
-    townhall = serializers.ReadOnlyField(source="townhall.name")
+    townhall = TownHallSerializer()
     period_pp = serializers.ReadOnlyField(source="period_pp.year")
+    # period_pp = PeriodPPSerializer()
     orphan_rows_count = serializers.SerializerMethodField()
+    pp_images = PPImageSerializer(many=True)
     def get_orphan_rows_count(self, obj):
         try:
             return len(obj.get_orphan_rows())
@@ -61,14 +88,13 @@ class PublicAccountList(serializers.ModelSerializer):
         model= PublicAccount
         fields = [
             "id",
-            "townhall_id",
             "townhall",
             "period_pp",
             "status",
-            "status",
             "match_review",
             "suburb_count",
-            "orphan_rows_count"
+            "orphan_rows_count",
+            "pp_images"
         ]
 
 class PublicAccountRetrieve(PublicAccountList):

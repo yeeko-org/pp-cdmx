@@ -88,8 +88,7 @@ class FinalProject(models.Model):
         max_digits=6, decimal_places=2,
         blank=True, null=True, verbose_name=u"Avance del proyecto")
 
-    variation = models.DecimalField(
-        max_digits=6, decimal_places=2,
+    variation = models.FloatField(
         blank=True, null=True, verbose_name=u"Variacion")
 
     # Observations
@@ -99,7 +98,9 @@ class FinalProject(models.Model):
         blank=True, null=True, verbose_name=u"Observaciones")
     pre_clasification = models.TextField(
         blank=True, null=True, verbose_name=u"Pre-clasificación")
-    validated = models.BooleanField(default=False, verbose_name=u"Validado")
+    validated = models.NullBooleanField(
+        verbose_name=u"Validado",
+        blank=True, null=True)
     user_validation = models.ForeignKey(
         User, blank=True, null=True, verbose_name=u"Usuario validador")
 
