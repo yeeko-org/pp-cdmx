@@ -119,6 +119,8 @@ class AnomalyFinalProjectSerializer(serializers.ModelSerializer):
 
 class FinalProjectRefsSerializer(serializers.ModelSerializer):
     suburb_name = serializers.ReadOnlyField(source="suburb.name")
+    #from geographic.api.serializers import TownHallSerializer
+    #suburb = TownHallSerializer()
 
     period_pp = serializers.ReadOnlyField(source="period_pp.year")
     data_raw = serializers.SerializerMethodField()
@@ -156,7 +158,6 @@ class FinalProjectRefsSerializer(serializers.ModelSerializer):
             "validated",
             "variation_calc",
             "data_raw",
-            "anomalies",
             "anomalies",
         ]
 

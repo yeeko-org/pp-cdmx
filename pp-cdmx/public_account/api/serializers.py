@@ -74,10 +74,11 @@ class PPImageUpdateSerializer(serializers.ModelSerializer):
         read_only_fields = ["path"]
 
 class PublicAccountList(serializers.ModelSerializer):
-    townhall = TownHallSerializer()
+    #townhall = TownHallSerializer()
+    townhall = serializers.ReadOnlyField(source="townhall.name")
     period_pp = serializers.ReadOnlyField(source="period_pp.year")
     # period_pp = PeriodPPSerializer()
-    orphan_rows_count = serializers.SerializerMethodField()
+    #orphan_rows_count = serializers.SerializerMethodField()
     pp_images = PPImageSerializer(many=True)
     def get_orphan_rows_count(self, obj):
         try:
@@ -93,7 +94,7 @@ class PublicAccountList(serializers.ModelSerializer):
             "status",
             "match_review",
             "suburb_count",
-            "orphan_rows_count",
+            #"orphan_rows_count",
             "pp_images"
         ]
 
