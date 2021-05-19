@@ -84,8 +84,7 @@ class FinalProject(models.Model):
         max_digits=12, decimal_places=2,
         blank=True, null=True, verbose_name=u"Ejecutado")
 
-    progress = models.DecimalField(
-        max_digits=6, decimal_places=2,
+    progress = models.FloatField(
         blank=True, null=True, verbose_name=u"Avance del proyecto")
 
     variation = models.FloatField(
