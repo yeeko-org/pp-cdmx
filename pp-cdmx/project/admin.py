@@ -10,7 +10,7 @@ class AnomalyFinalProjectInline(admin.TabularInline):
     model = AnomalyFinalProject
     show_change_link = True
     extra = 0
-    raw_id_fields = ["anomaly", "public_account"]
+    raw_id_fields = ["anomaly"]
     #classes = ['collapse']
 
 
@@ -81,7 +81,7 @@ class FinalProjectAdmin(admin.ModelAdmin):
     ]
     inlines = [AnomalyFinalProjectInline]
     raw_id_fields = [
-        "suburb", "period_pp", "image", "project", "user_validation"
+        "suburb", "period_pp", "project", "user_validation"
     ]
 
     def display_anomalyfinalprojectinline(self, obj):

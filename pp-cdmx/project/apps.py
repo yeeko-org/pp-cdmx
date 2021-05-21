@@ -6,4 +6,4 @@ from django.apps import AppConfig
 
 class ProjectConfig(AppConfig):
     name = "project"
-    verbose_name = u"Pryectos"
+    verbose_name = u"Proyectos"

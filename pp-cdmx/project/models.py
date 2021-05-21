@@ -8,9 +8,6 @@ from period.models import PeriodPP
 from classification.models import CategoryIECM, Anomaly
 
 from django.contrib.auth.models import User
-from public_account.models import PPImage
-
-from public_account.models import PublicAccount
 import json
 
 
@@ -104,7 +101,7 @@ class FinalProject(models.Model):
         User, blank=True, null=True, verbose_name=u"Usuario validador")
 
     # Variables from Vision
-    image = models.ForeignKey(PPImage, blank=True, null=True)
+    image = models.IntegerField(blank=True, null=True)
     similar_suburb_name = models.DecimalField(
         max_digits=3, decimal_places=2, default=0, blank=True, null=True,
         verbose_name=u"Nivel de similitud de nombre (-1 cuando es forzado)")
@@ -230,7 +227,6 @@ class FinalProject(models.Model):
 class AnomalyFinalProject(models.Model):
     anomaly = models.ForeignKey(Anomaly)
     final_project = models.ForeignKey(FinalProject, blank=True, null=True)
-    public_account = models.ForeignKey(PublicAccount, blank=True, null=True)
 
     def __unicode__(self):
         return u"%s -%s" % (self.final_project or self.public_account, self.anomaly)

@@ -6,6 +6,7 @@ from geographic.models import TownHall, Suburb
 from period.models import PeriodPP
 from pprint import pprint
 from scripts.data_cleaner import set_new_error
+from project.models import FinalProject
 import json
 
 from scripts.data_cleaner_v2 import calculateNumber
@@ -228,8 +229,8 @@ class PublicAccount(models.Model):
             executed__isnull=False)
 
         self.not_executed = query_final_p.filter(executed=0).count()
-        self.no_info = not query_final_p.filter(
-            image__public_account=self).exists()
+        # self.no_info = not query_final_p.filter(
+        #     image__public_account=self).exists()
         self.minus_10 = 0
         self.minus_5 = 0
         self.similar = 0
@@ -293,8 +294,8 @@ class PublicAccount(models.Model):
         query_final_p = FinalProject.objects\
             .filter(suburb__townhall=self.townhall,
                     period_pp=self.period_pp)
-        if all_images:
-            query_final_p.filter(image__in=all_images)
+        # if all_images:
+        #     query_final_p.filter(image__in=all_images)
 
         query_final_p.update(
             image=None, similar_suburb_name=None, error_cell="",
@@ -2370,6 +2371,60 @@ class PPImage(models.Model):
 
             final_proj.image = self
         final_proj.save()
+
+
+class Row(models.Model):
+    final_project = models.ForeignKey(FinalProject, blank=True, null=True)
+    image = models.ForeignKey(PPImage)
+    project_name = models.TextField(blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    progress = models.DecimalField(
+        max_digits=7, decimal_places=3,
+        blank=True, null=True, verbose_name=u"Avance del proyecto")
+    approved = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        blank=True, null=True, verbose_name=u"Aprobado")
+    modified = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name=u"Modificado")
+    executed = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        blank=True, null=True, verbose_name=u"Ejecutado")
+    variation = models.DecimalField(
+        max_digits=7, decimal_places=3,
+        blank=True, null=True, verbose_name=u"Variacion")
+
+    validated = models.NullBooleanField(
+        verbose_name=u"Validado",
+        blank=True, null=True)
+
+    errors = models.TextField(blank=True, null=True)
+    sequential = models.SmallIntegerField(blank=True, null=True)
+    vision_data = models.TextField()
+    formatted_data = models.TextField(blank=True, null=True)
+    top = models.SmallIntegerField(blank=True, null=True)
+    bottom = models.SmallIntegerField(blank=True, null=True)
+
+    def get_vision_data(self, *args, **kwargs):
+        return []
+
+    def get_errors(self, *args, **kwargs):
+        return []
+
+    def set_get_errors(self, *args, **kwargs):
+        return
+
+    def get_formatted_data(self, *args, **kwargs):
+        return []
+
+    class Meta:
+        verbose_name = "Row"
+        verbose_name_plural = "Rows"
+
+    def __unicode__(self):
+        return self.project_name
 
 
 def append_comprob(comprobs, row, name):

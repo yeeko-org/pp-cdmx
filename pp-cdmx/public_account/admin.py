@@ -26,44 +26,6 @@ class PublicAccountAdmin(admin.ModelAdmin):
 admin.site.register(PublicAccount, PublicAccountAdmin)
 
 
-class FinalProjectInline(admin.StackedInline):
-    model = FinalProject
-    extra = 0
-    raw_id_fields = ["suburb", "period_pp", "project", "user_validation"]
-    fieldsets = [
-        [None, {
-            "fields": [
-                "suburb", "period_pp", "project", "total_votes",
-                "description_cp", "final_name"  # , "category_cp"
-            ]
-        }],
-        ["Ammounts", {
-            "classes": ["collapse"],
-            "fields": [
-                "progress",  # "approuved",
-                "approved",  # "excecuted",
-                "modified",  # "excecuted",
-                "executed",  # "excecuted",
-                "variation"  # "excecuted",
-            ]
-        }],
-        ["Observations", {
-            "classes": ["collapse"],
-            "fields": [
-                "observation", "validated", "user_validation",
-                "manual_capture", "pre_clasification"
-            ]
-        }],
-        ["Procesados de Google Vision", {
-            "classes": ["collapse"],
-            "fields": [
-                "image", "similar_suburb_name", "name_in_pa",
-                "json_variables", "error_cell", "inserted_data"
-            ]
-        }]
-    ]
-
-
 class PPImageAdmin(admin.ModelAdmin):
     model = PPImage
     list_display = ["public_account", "path", "status", "len_array_numbers",
@@ -74,7 +36,6 @@ class PPImageAdmin(admin.ModelAdmin):
     search_fields = [
         "path", "public_account__townhall__name",
         "finalproject__suburb__name"]
-    inlines = [FinalProjectInline]
     raw_id_fields = ["public_account"]
     readonly_fields = ["get_image_url"]
     fieldsets = [
