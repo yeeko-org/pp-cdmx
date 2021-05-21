@@ -233,7 +233,7 @@ class AnomalyFinalProject(models.Model):
     public_account = models.ForeignKey(PublicAccount, blank=True, null=True)
 
     def __unicode__(self):
-        return u"%s -%s" % (self.final_project, self.anomaly)
+        return u"%s -%s" % (self.final_project or self.public_account, self.anomaly)
 
     class Meta:
         verbose_name_plural = u"Anomalía y Proyecto Final"
