@@ -12,14 +12,33 @@ class ProjectSerializer(serializers.ModelSerializer):
         # depth = 2
 
 
+class AnomalyFinalProjectSerializer(serializers.ModelSerializer):
+    from classification.api.serializers import AnomalySerializer
+    anomaly = AnomalySerializer()
+
+    class Meta:
+        model = AnomalyFinalProject
+        fields = "__all__"
+        # depth = 2
+
+
 class FinalProjectSerializer(serializers.ModelSerializer):
     projects = ProjectSerializer(many=True)
-
+    year = serializers.ReadOnlyField(source="period_pp.year", default=None)
+    anomalies = serializers.SerializerMethodField()
+    def get_anomalies(self, obj):
+        try:
+            anoms_fp = AnomalyFinalProject.objects.filter(final_project=obj, 
+                    anomaly__is_public=True)
+            return AnomalyFinalProjectSerializer(anoms_fp, many=True).data
+        except Exception as e:
+            return None
     class Meta:
         model = FinalProject
         fields = [
             "suburb",
-            "period_pp",
+            #"period_pp",
+            "year",
             "project",
             "total_votes",
             "description_cp",
@@ -31,10 +50,10 @@ class FinalProjectSerializer(serializers.ModelSerializer):
             "executed",
             "progress",
             "manual_capture",
-            "observation",
-            "pre_clasification",
-            "validated",
+            #"observation",
+            #"pre_clasification",
             "projects",
+            "anomalies",
         ]
         # depth = 2
 
@@ -97,16 +116,6 @@ class FinalProjectOrphanSerializer(serializers.ModelSerializer):
             "period_pp",
             "image",
         ]
-        # depth = 2
-
-
-class AnomalyFinalProjectSerializer(serializers.ModelSerializer):
-    from classification.api.serializers import AnomalySerializer
-    anomaly = AnomalySerializer()
-
-    class Meta:
-        model = AnomalyFinalProject
-        fields = "__all__"
         # depth = 2
 
 class FinalProjectRefsSerializer(serializers.ModelSerializer):
