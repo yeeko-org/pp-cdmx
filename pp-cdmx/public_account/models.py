@@ -22,13 +22,13 @@ column_types = [
     {
         "name": "project",
         "title": u"Proyecto",
-        "field": "final_name",
+        "field": "project_name",
         "type": "text"
     },
     {
         "name": "description",
         "title": u"Descripción",
-        "field": "description_cp",
+        "field": "description",
         "type": "text"
     },
     {
@@ -62,6 +62,18 @@ column_types = [
         "type": "number"
     },
 ]
+
+column_types_v3 = [
+    "suburb",
+    "project",
+    "description",
+    "progress",
+    "approved",
+    "modified",
+    "executed",
+    "variation",
+]
+
 
 def check_columns_headers(columns_headers, show_prints=False):
     no_headers=8
@@ -605,37 +617,145 @@ class PublicAccount(models.Model):
         self.save()
         return
 
-    def calculate_special_formats(self, all_images, columns_nums, image_num):
-        variables = self.get_variables()
-        # si ya se había canculado el special_formats, simplemente se obtiene
-        # if "special_formats" in variables:
-        #     return variables["special_formats"]
+    def column_formatter_v3(self, reset=False, image_num=None):
+        from project.models import Project, FinalProject, AnomalyFinalProject
+        from classification.models import Anomaly
+        print
+        print
+        print "----Cuenta publica %s, id: %s----"%(self, self.id)
+        from project.models import FinalProject
+        from scripts.data_cleaner_v3 import (
+            cleanSuburbName,
+            get_normal_name,
+            clean_text,
+            flexibleMatchSuburb_v3,
+            calculate_special_formats_v3)
+        import numpy
+        suburbs_dict = []
 
-        # si no, se calcula:
-        # Se trabajará solo con las columnas numéricas, que son las últimas 5
-        count_rows = [0, 0, 0, 0, 0]
-        special_format_count = [0, 0, 0, 0, 0]
-        special_formats = [False, False, False, False, False]
-        for image in all_images[:3]:
-            for row in image.get_table_data():
-                # Se trabajarán solo con los las últimas 5 columnas
-                for idx, value in enumerate(row[3:]):
-                    sum_col = calculateNumber(value, columns_nums[idx])
-                    # Solo se sumarán si la función arrojó algún número
-                    if sum_col is not None:
-                        special_format_count[idx] += sum_col
-                        count_rows[idx] += 1
+        all_images = PPImage.objects.filter(public_account=self)
+        if image_num:
+            all_images = all_images.filter(path__icontains=image_num)
 
-            # Se puede detarminar una tendencia de tener algún formato
-            # especial si existen al menos 5 datos con formato válido
-        for idx, col in enumerate(columns_nums):
-            curr_tot = float(count_rows[idx])
-            is_special = special_format_count[idx]/curr_tot >= 0.75 if curr_tot else False
-            special_formats.append(is_special)
-        variables["special_formats"] = special_formats
-        self.variables = json.dumps(variables)
-        self.save()
-        return special_formats
+        if reset:
+            self.reset(all_images)
+
+        all_images = all_images.order_by("path")
+
+        # Se obtienen los formatos de cada uno de los
+        special_formats = calculate_special_formats_v3(
+            self, all_images, column_types[3:], image_num)
+
+        seq = 1
+        """
+        Una vez obtenido los valores de special_formats, se tratan los datos:
+        """
+        if not special_formats:
+            #si el calculo de special_formats no trae informacion, crashea
+            # todo el proceso, hasta arreglarlo no se procesaran las imagenes
+            set_new_error(
+                self, "error al calcular special_formats: %s"%special_formats)
+            set_new_error(
+                self, "No se pocreso ningun imagen.table_data")
+            all_images = []
+
+        for image in all_images:
+            print u"    %s"%image
+            # Intentamos obtener los datos que nos interesan
+            # print image.path
+            # Por cada fila de datos:
+            all_rows = Row.objects.filter(image=image)
+
+            if not all_rows.count():
+                set_new_error(
+                    self, "La imagen %s no proceso Table Data"%image)
+            for row in all_rows:
+                seq += 1
+                errors = get
+                # Intentamos obtener de forma simple el id de la colonia.
+                vision_data = row.get_vision_data()
+                
+                row_data = []
+
+                for idx, col in enumerate(vision_data):
+                    if idx > 2:
+                        col_ref = column_types[idx]
+                        special_format = special_formats[idx - 3]
+                        final_value, c_errors = calculateNumber(
+                            col, col_ref, special_format)
+                        if len(c_errors):
+                            errors += c_errors
+                            final_value = None
+                    elif idx:
+                        final_value = clean_text(col)
+                    else:
+                        final_value = get_normal_name(col)
+                    row_data.append(final_value)
+
+                row.formatted_data = json.dumps(row_data)
+                row.sequential = seq
+                row.errors = json.dumps(errors)
+                row.save()
+        #return
+
+    def calculate_match_v3(self, reset=False, image_num=None):
+        from project.models import Project, FinalProject, AnomalyFinalProject
+        from classification.models import Anomaly
+        print
+        print
+        print "----Cuenta publica %s, id: %s----"%(self, self.id)
+        from project.models import FinalProject
+        from scripts.calculate_match_v3 import (
+            saveFinalProjSuburb_v3,
+            calculateSuburb_v3,
+            flexibleMatchSuburb_v3,
+            similar_content)
+        import numpy
+        suburbs_dict = []
+
+        all_images = PPImage.objects.filter(public_account=self)
+        if image_num:
+            all_images = all_images.filter(path__icontains=image_num)
+
+        all_images= all_images.order_by("path")
+
+        final_projects = FinalProject.objects\
+            .filter(suburb__townhall=self.townhall, period_pp=self.period_pp)
+
+        """
+        Una vez obtenido los valores de special_formats, se tratan los datos:
+        """
+        # Intentamos obtener los datos que nos interesan
+        # print image.path
+        # Por cada fila de datos:
+        all_rows = Row.objects.filter(image__public_account=self)
+
+        for row in all_rows:
+            errors = row.get_errors()
+            # Intentamos obtener de forma simple el id de la colonia.
+            sub_id, normal_name = calculateSuburb_v3(row, final_projects)
+            
+            row_data = []
+
+            new_sub_id = None
+            if sub_id:
+                new_sub_id = saveFinalProjSuburb_v3(
+                    sub_id, row, final_projects)
+                    #sub_id, all_row)
+            if not new_sub_id:
+                print "no hay new_sub_id"
+
+        #all_orphan_rows = self.get_orphan_rows()
+        all_orphan_rows = Row.objects.filter(final_project__isnull=True)
+        for orphan_row in all_orphan_rows:
+            formatted_data = row.get_formatted_data()
+            if len(formatted_data):
+                #orphan_fps = final_projects.filter(row__isnull=True)
+                flexibleMatchSuburb_v2(row, formatted_data[0], final_projects)
+
+        return
+
+
 
     def get_variables(self):
         import json
@@ -2434,7 +2554,7 @@ def append_comprob(comprobs, row, name):
         pass
     return comprobs
 
-
+#v3 Borrar
 def similar_content(sub_name, row):
     from difflib import SequenceMatcher
     comprobs = append_comprob([], row, "curr")
@@ -2454,7 +2574,7 @@ def similar_content(sub_name, row):
 
     return may_name, max_value
 
-
+#v3 Borrar
 def formatter_orphan(all_images, all_orphan_rows):
     new_orphan_rows = {"suburbs": [], "numbers": []}
     # print all_orphan_rows
@@ -2480,7 +2600,7 @@ def formatter_orphan(all_images, all_orphan_rows):
             new_orphan_rows["suburbs"] += orphan_stable_subs
     return new_orphan_rows
 
-
+#v3 Borrar
 def flexibleMatchSuburb(orphan_subs, pa):
     from scripts.data_cleaner import similar, saveFinalProjSuburb
     from pprint import pprint
