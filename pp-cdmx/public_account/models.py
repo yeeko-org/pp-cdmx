@@ -2378,6 +2378,9 @@ class Row(models.Model):
     image = models.ForeignKey(PPImage)
     project_name = models.TextField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)
+    similar_suburb_name = models.DecimalField(
+        max_digits=3, decimal_places=2, default=0, blank=True, null=True,
+        verbose_name=u"Nivel de similitud de nombre (-1 cuando es forzado)")
     progress = models.DecimalField(
         max_digits=7, decimal_places=3,
         blank=True, null=True, verbose_name=u"Avance del proyecto")
@@ -2413,7 +2416,7 @@ class Row(models.Model):
     def get_errors(self, *args, **kwargs):
         return []
 
-    def set_get_errors(self, *args, **kwargs):
+    def set_errors(self, *args, **kwargs):
         return
 
     def get_formatted_data(self, *args, **kwargs):
