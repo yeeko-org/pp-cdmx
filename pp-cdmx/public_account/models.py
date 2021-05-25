@@ -1938,6 +1938,7 @@ class PPImage(models.Model):
             row_obj.vision_data = json.dumps(row_data)
             row_obj.top = row_top
             row_obj.bottom = row_bot
+            row_obj.save()
             table_data.append(row_data)
             sequential += 1
 
@@ -2419,29 +2420,48 @@ class Row(models.Model):
 
     errors = models.TextField(blank=True, null=True)
     sequential = models.SmallIntegerField(blank=True, null=True)
-    vision_data = models.TextField()
+    vision_blocks = models.TextField(blank=True, null=True)
+    vision_data = models.TextField(blank=True, null=True)
     formatted_data = models.TextField(blank=True, null=True)
     top = models.SmallIntegerField(blank=True, null=True)
     bottom = models.SmallIntegerField(blank=True, null=True)
 
     def get_vision_data(self, *args, **kwargs):
-        return []
+        try:
+            return json.loads(self.vision_data)
+        except Exception as e:
+            return []
 
     def get_errors(self, *args, **kwargs):
-        return []
+        try:
+            return json.loads(self.errors)
+        except Exception as e:
+            return []
 
     def set_errors(self, *args, **kwargs):
-        return
+        if len(args) == 1:
+            error = args[0]
+        elif "error" in kwargs:
+            error = kwargs["error"]
+        else:
+            return
+        errors=self.get_errors()
+        errors.append(u"%s"%error)
+        self.errors = json.dumps(errors)
+        self.save()
 
     def get_formatted_data(self, *args, **kwargs):
-        return []
+        try:
+            return json.loads(self.formatted_data)
+        except Exception as e:
+            return []
 
     class Meta:
         verbose_name = "Row"
         verbose_name_plural = "Rows"
 
     def __unicode__(self):
-        return self.project_name
+        return u"%s - %s"%(self.image, self.sequential)
 
 
 def append_comprob(comprobs, row, name):
