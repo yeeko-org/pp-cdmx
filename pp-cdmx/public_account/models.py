@@ -288,6 +288,7 @@ class PublicAccount(models.Model):
         # se devera realizar un segundo calculo pero ahora basado en la
         # cantidad de proyectos finales que no tienen una referencia
         # si se cree que existe mucha perdida de datos
+
     def recalculate_w_manual_ref(self):
         for image in PPImage.objects.filter(
             need_manual_ref=True,
@@ -295,7 +296,6 @@ class PublicAccount(models.Model):
             public_account=self):
             image.get_data_from_columns_mr()
         self.column_formatter_v2()
-
 
     def __unicode__(self):
         return u"%s -- %s" % (self.period_pp, self.townhall)
@@ -1930,12 +1930,15 @@ class PPImage(models.Model):
         self.save()
         return data["columns_data_bot"]
 
-    def calculate_table_data(self, limit_position="top"):
+    def calculate_table_data(self, limit_position=None):
+        # cambio de logica para objetos Row
         data = self.get_json_variables()
         columns_data = data.get("columns_data")
         if not columns_data:
             print u"        No se tiene columns_data"
             return
+        if not limit_position:
+            limit_position=self.public_account.vertical_align_ammounts
         # if not all(data["columns_data"]):
         #     print u"        Se esperava 8 columnas, todas con datos"
         #     return
@@ -1964,23 +1967,22 @@ class PPImage(models.Model):
         else:
             return
 
-        columns_data = data.get("columns_data")
-
         table_data = []
-
+        sequential = 0
         for vertical_limit in vertical_limits:
             row_top = vertical_limit.get("top")
             row_bot = vertical_limit.get("bot")
-            row_data = []
+            row_data = [] # fragmentos unidos en los datos finales
+            row_blocks = [] # informacion de vision
             for column_data in columns_data:
-                row_blocks = []
+                cell_blocks = []
                 for block in column_data:
                     vertices = block.get("vertices")
                     block_top = vertices[0].get("y")
                     block_bot = vertices[3].get("y")
                     if block_top >= row_top and block_bot <= row_bot:
                         # palabra completos dentro de los limites
-                        row_blocks.append(block)
+                        cell_blocks.append(block)
                         continue
                     full = block_bot - block_top
                     if (block_top >= row_top and block_top <= row_bot):
@@ -1991,13 +1993,13 @@ class PPImage(models.Model):
                         fraccion = block_bot - row_top
                     elif row_top >= block_top and row_bot <= block_bot:
                         # la linea atravieza los limites, se deve contemplar?
-                        row_blocks.append(block)
+                        cell_blocks.append(block)
                         continue
                     else:
                         continue
                     porcentaje = (fraccion * 100) / full
                     if porcentaje > 60:
-                        row_blocks.append(block)
+                        cell_blocks.append(block)
                 """
                 En este punto tenemos una nuve ordenada de menor a mayor en y
                 de lineas
@@ -2014,7 +2016,7 @@ class PPImage(models.Model):
                 ordenando los subgrupos por su pocicion en x
                 """
                 lines_goup=[]
-                for line in row_blocks:
+                for line in cell_blocks:
                     vertices=line.get("vertices")
                     line["fx"]=vertices[0]["x"]
                     lyt=vertices[0]["y"]
@@ -2046,7 +2048,19 @@ class PPImage(models.Model):
                     [line for line in final_lines])
                 line_text = line_text.replace(u"\n", " ").strip()
                 row_data.append(line_text)
+                row_blocks.append(cell_blocks)
+
+            # creacion del nuevo objeto Row con la informacion generada
+            row_obj, is_created = Row.objects.get_or_create(
+                image=self, sequential=sequential)
+            row_obj.vision_blocks = json.dumps(row_blocks)
+            row_obj.vision_data = json.dumps(row_data)
+            row_obj.vision_data = json.dumps(row_data)
+            row_obj.top = row_top
+            row_obj.bottom = row_bot
+            row_obj.save()
             table_data.append(row_data)
+            sequential += 1
 
         # data["table_data"] = table_data
         # self.json_variables = json.dumps(data)
@@ -2198,6 +2212,7 @@ class PPImage(models.Model):
         return vertical_limits
 
     def get_table_data(self, recalculate=False):
+        # cambio de logica a creacion de registro de objetos Row por ppimage
         try:
             table_data=json.loads(self.table_data)
         except Exception as e:
@@ -2498,6 +2513,9 @@ class Row(models.Model):
     image = models.ForeignKey(PPImage)
     project_name = models.TextField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)
+    similar_suburb_name = models.DecimalField(
+        max_digits=3, decimal_places=2, default=0, blank=True, null=True,
+        verbose_name=u"Nivel de similitud de nombre (-1 cuando es forzado)")
     progress = models.DecimalField(
         max_digits=7, decimal_places=3,
         blank=True, null=True, verbose_name=u"Avance del proyecto")
@@ -2522,29 +2540,48 @@ class Row(models.Model):
 
     errors = models.TextField(blank=True, null=True)
     sequential = models.SmallIntegerField(blank=True, null=True)
-    vision_data = models.TextField()
+    vision_blocks = models.TextField(blank=True, null=True)
+    vision_data = models.TextField(blank=True, null=True)
     formatted_data = models.TextField(blank=True, null=True)
     top = models.SmallIntegerField(blank=True, null=True)
     bottom = models.SmallIntegerField(blank=True, null=True)
 
     def get_vision_data(self, *args, **kwargs):
-        return []
+        try:
+            return json.loads(self.vision_data)
+        except Exception as e:
+            return []
 
     def get_errors(self, *args, **kwargs):
-        return []
+        try:
+            return json.loads(self.errors)
+        except Exception as e:
+            return []
 
-    def set_get_errors(self, *args, **kwargs):
-        return
+    def set_errors(self, *args, **kwargs):
+        if len(args) == 1:
+            error = args[0]
+        elif "error" in kwargs:
+            error = kwargs["error"]
+        else:
+            return
+        errors=self.get_errors()
+        errors.append(u"%s"%error)
+        self.errors = json.dumps(errors)
+        self.save()
 
     def get_formatted_data(self, *args, **kwargs):
-        return []
+        try:
+            return json.loads(self.formatted_data)
+        except Exception as e:
+            return []
 
     class Meta:
         verbose_name = "Row"
         verbose_name_plural = "Rows"
 
     def __unicode__(self):
-        return self.project_name
+        return u"%s - %s"%(self.image, self.sequential)
 
 
 def append_comprob(comprobs, row, name):

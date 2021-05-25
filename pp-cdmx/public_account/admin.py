@@ -3,13 +3,18 @@ from __future__ import unicode_literals
 
 from django.contrib import admin
 
-from .models import PublicAccount, PPImage
-from project.models import FinalProject
+from .models import PPImage, PublicAccount, Row
 
 
 class PPImageInline(admin.StackedInline):
     model = PPImage
     extra = 0
+
+
+class RowInline(admin.StackedInline):
+    model = Row
+    extra = 0
+    readonly_fields = ["final_project", "image"]
 
 
 class PublicAccountAdmin(admin.ModelAdmin):
@@ -67,6 +72,7 @@ class PPImageAdmin(admin.ModelAdmin):
             ],
         }],
     ]
+    inlines = [RowInline]
 
     def get_image_url(self, obj):
         from django.conf import settings as dj_settings
@@ -76,7 +82,9 @@ class PPImageAdmin(admin.ModelAdmin):
             domain,
             obj.public_account.period_pp.year,
             obj.path)
-        return format_html('<a href="%s" target="_blank"><img src="%s" alt="image" width="500" height="400"></a><br>' % (
-            full_url, full_url))
+        return format_html(
+            '<a href="%s" target="_blank"><img src="%s" '
+            'alt="image" width="500" height="400"></a><br>' % (
+                full_url, full_url))
 
 admin.site.register(PPImage, PPImageAdmin)
