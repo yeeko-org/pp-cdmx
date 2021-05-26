@@ -22,7 +22,7 @@ def calculateSuburb_v3(row, final_projects):
     #El extrañísimo (pero siempre es posible) caso de que existan dos 
     # alcaldías distintas en el mismo lugar.
     if sub_id and cve and sub_id != cve:
-        row.set_get_errors("Doble coincidencia: por clave y por nombre")
+        row.set_errors("Doble coincidencia: por clave y por nombre")
         return cve, normal_name
     cve_in_proj = get_cve(formatted_data[1], final_projects, row)
     #Se devuelve la primera coincidencia:
@@ -35,6 +35,10 @@ def get_cve(text, final_projects, row):
     #identificamos el formato (11-034)
     re_has_cve = re.compile(r'.*(?:\D|^)(\d{2})\s?\D?\s?(\d{3})(?:\D|$).*')
     #Se busca la clave de la colonia
+    ### el texto puede llegar False
+    if not text:
+        row.set_errors(u"text Value error: %s" % text)
+        return None
     if re.match(re_has_cve, text):
         #Normalizamos el formato para aquello que "parece" clave
         cve_suburb = re.sub(re_has_cve, r'\1-\2', text)
@@ -45,7 +49,7 @@ def get_cve(text, final_projects, row):
                 sub_id = final_projects.get(suburb__cve_col=cve_suburb).id
             except Exception as e:
                 err = "Algo que parece clave no se encontró (%s)"%cve_suburb
-                row.set_get_errors(err)
+                row.set_errors(err)
                 print 'Clave no encontrada'+cve_suburb
     return sub_id
 
@@ -56,7 +60,7 @@ def get_suburb_id(normal_name, final_projects, row):
     subs_found = final_projects.filter(suburb__short_name=normal_name)
     if subs_found.count() > 1:
         err = u"Varias colonias coincidentes con %s"%normal_name
-        row.set_get_errors(err)
+        row.set_errors(err)
     if subs_found.count():
         return subs_found.first().id
     else:
@@ -64,21 +68,21 @@ def get_suburb_id(normal_name, final_projects, row):
 
 #def saveFinalProjSuburb_v3(sub_id, row_data, simil=1):
 def saveFinalProjSuburb_v3(sub_id, row, final_projects, simil=1):
-    from public_account.models import column_types
+    # from public_account.models import column_types
+    from project.models import FinalProject
     try:
         final_proy = final_projects.get(suburb__id=sub_id)
-        row.final_proy = final_proy
-        row.similar_suburb_name = simil
-        for idx, value in enumerate(row_data.get("data")):
-            if idx:
-                # print column_types[idx]["field"]
-                setattr(final_proy, column_types[idx]["field"], value)
-        row.save()
-        return sub_id
-    except Exception as e:
+    except FinalProject.DoesNotExist:
         print "No se enontró sub_id en función saveFinalProjSuburb_v3"
-        print e
         return None
+    row.final_proy = final_proy
+    row.similar_suburb_name = simil
+    # for idx, value in enumerate(row_data.get("data")):
+    #     if idx:
+    #         # print column_types[idx]["field"]
+    #         setattr(final_proy, column_types[idx]["field"], value)
+    row.save()
+    return sub_id
 
 def flexibleMatchSuburb_v3(row, sub_name, final_projects):
     from pprint import pprint
@@ -97,10 +101,12 @@ def flexibleMatchSuburb_v3(row, sub_name, final_projects):
             concordance-= 0.001
         if concordance > 0.8 and concordance > max_conc:
             max_fp = fp
-            match_row_idx = row_idx
+            # match_row_idx = row_idx
+            match_row_idx = row.id
             max_conc = concordance
     if max_fp:
-        match_row = orphan_rows[match_row_idx]
-        sub_id = saveFinalProjSuburb_v3(max_fp.suburb.id, row, max_conc)
+        # match_row = orphan_rows[match_row_idx]
+        sub_id = saveFinalProjSuburb_v3(
+            max_fp.suburb.id, row, final_projects, max_conc)
 
 

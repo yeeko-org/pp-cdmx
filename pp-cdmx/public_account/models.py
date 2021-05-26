@@ -628,7 +628,6 @@ class PublicAccount(models.Model):
             cleanSuburbName,
             get_normal_name,
             clean_text,
-            flexibleMatchSuburb_v3,
             calculate_special_formats_v3)
         import numpy
         suburbs_dict = []
@@ -671,7 +670,7 @@ class PublicAccount(models.Model):
                     self, "La imagen %s no proceso Table Data"%image)
             for row in all_rows:
                 seq += 1
-                errors = get
+                errors = row.get_errors()
                 # Intentamos obtener de forma simple el id de la colonia.
                 vision_data = row.get_vision_data()
                 
@@ -708,8 +707,7 @@ class PublicAccount(models.Model):
         from scripts.calculate_match_v3 import (
             saveFinalProjSuburb_v3,
             calculateSuburb_v3,
-            flexibleMatchSuburb_v3,
-            similar_content)
+            flexibleMatchSuburb_v3,)
         import numpy
         suburbs_dict = []
 
@@ -751,7 +749,7 @@ class PublicAccount(models.Model):
             formatted_data = row.get_formatted_data()
             if len(formatted_data):
                 #orphan_fps = final_projects.filter(row__isnull=True)
-                flexibleMatchSuburb_v2(row, formatted_data[0], final_projects)
+                flexibleMatchSuburb_v3(row, formatted_data[0], final_projects)
 
         return
 

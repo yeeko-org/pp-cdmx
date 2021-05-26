@@ -189,12 +189,11 @@ def calculate_special_formats_v3(pa, all_images, columns_nums, image_num):
     pa.save()
     return special_formats
 
-​
-​
+
 from project.models import FinalProject
 from public_account.models import PublicAccount, PPImage
-​
-​
+
+
 def clean_text(text):
     # final_text = unidecode.unidecode(text)
     final_text = text
