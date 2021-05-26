@@ -2536,6 +2536,9 @@ class Row(models.Model):
         verbose_name=u"Validado",
         blank=True, null=True)
 
+    variation_calc = models.FloatField(blank=True, null=True)
+    range = models.CharField(max_length=50, blank=True, null=True)
+
     errors = models.TextField(blank=True, null=True)
     sequential = models.SmallIntegerField(blank=True, null=True)
     vision_blocks = models.TextField(blank=True, null=True)
@@ -2574,12 +2577,35 @@ class Row(models.Model):
         except Exception as e:
             return []
 
+    def save(self, *args, **kwargs):
+
+        if self.executed and self.approved:
+            self.variation_calc = float((self.executed / self.approved) * 100)
+
+            if self.variation_calc > 102.5:
+                self.range = u">2.5%"
+
+            elif self.variation_calc > 97.5:
+                self.range = u"similar"
+
+            elif self.variation_calc > 90:
+                self.range = u"<-2.5%"
+
+            elif self.variation_calc > 0:
+                self.range = u"<-10%"
+
+            else:
+                self.range = u"not_executed"
+                self.variation_calc = 0
+
+        super(Row, self).save(*args, **kwargs)
+
     class Meta:
         verbose_name = "Row"
         verbose_name_plural = "Rows"
 
     def __unicode__(self):
-        return u"%s - %s"%(self.image, self.sequential)
+        return u"%s - %s" % (self.image, self.sequential)
 
 
 def append_comprob(comprobs, row, name):
