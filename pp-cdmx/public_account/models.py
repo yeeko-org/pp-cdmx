@@ -12,10 +12,18 @@ from period.models import PeriodPP
 from project.models import FinalProject
 
 from .pp_image_mix import PPImageDataProcessingMix
-from .public_account_mix import PublicAccountDataProcessingMix
+
+from .public_account_mixins.cleaner_mix import PublicAccountCleanerMix
+from .public_account_mixins.config_mix import PublicAccountMix
+from .public_account_mixins.match_mix import PublicAccountMatchMix
+from .public_account_mixins.old_mix import PublicAccountOldMix
+from .public_account_mixins.vision_mix import PublicAccountVisionMix
 
 
-class PublicAccount(models.Model, PublicAccountDataProcessingMix):
+class PublicAccount(models.Model, PublicAccountCleanerMix,
+                    PublicAccountMatchMix, PublicAccountMix,
+                    PublicAccountOldMix, PublicAccountVisionMix):
+
     VERTICAL_ALIGN_AMMOUNTS = (
         ("top", u"top"),
         ("center", u"center"),
