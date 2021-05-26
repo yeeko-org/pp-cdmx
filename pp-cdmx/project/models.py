@@ -17,9 +17,12 @@ import json
 class Project(models.Model):
     suburb = models.ForeignKey(Suburb, verbose_name=u"Colonia")
     period_pp = models.ForeignKey(PeriodPP, verbose_name=u"Periodo PP")
-    name_iecm = models.CharField(
+    # name_iecm = models.CharField(
+    #     blank=True, null=True,
+    #     max_length=255,
+    #     verbose_name=u"Nombre del IECM")
+    name_iecm = models.TextField(
         blank=True, null=True,
-        max_length=255,
         verbose_name=u"Nombre del IECM")
     project_id = models.IntegerField(
         blank=True, null=True,
