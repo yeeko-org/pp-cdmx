@@ -5,7 +5,7 @@ import json
 import re
 
 from scripts.data_cleaner import set_new_error
-from scripts.data_cleaner_v2 import calculateNumber
+#from scripts.data_cleaner_v2 import calculateNumber
 
 
 class PublicAccountCleanerMix:
@@ -67,6 +67,7 @@ class PublicAccountCleanerMix:
                 vision_data = row.get_vision_data()
 
                 row_data = []
+                valid_row
 
                 for idx, col in enumerate(vision_data):
                     if idx > 2:
@@ -81,11 +82,21 @@ class PublicAccountCleanerMix:
                         final_value = clean_text(col)
                     else:
                         final_value = get_normal_name(col)
+                        valid_row = final_value
                     row_data.append(final_value)
-
+                    if final_value && idx:
+                        row[column_types[idx].field] = final_value
+                #print vision_data[0]
+                #print row_data
+                if valid_row == False:
+                    continue
                 row.formatted_data = json.dumps(row_data)
-                row.sequential = seq
                 row.errors = json.dumps(errors)
+                if not valid_row:
+                    errors.append("Fila sin información de colonia")
+                else:
+                    row.sequential = seq
+                row = set_values_row(row)
                 row.save()
         # return
 
@@ -250,3 +261,115 @@ def clean_text(text):
     final_text = re.sub(r'(\)|\:|\,|\.|\;|\?|\!)(\w)', '\\1 \\2', final_text)
     final_text = final_text.strip()
     return final_text
+
+def set_values_row(row):
+
+    import json
+    for column in column_types:
+        curr_amm = sub_row.get("number_data", {}).get(ammount)
+        if curr_amm:
+            if curr_amm["correct_format"]:
+                setattr(final_proj, ammount, curr_amm.get("final_value"))
+                final_proj.inserted_data = True
+            else:
+                set_new_error(
+                    final_proj,
+                    u"%s >> formato incorrecto: %s" % (
+                        ammount, curr_amm.get("raw_unity")))
+        else:
+            set_new_error(final_proj,
+                          u"%s >> No tiene ningún valor " % ammount)
+
+        final_proj.image = self
+    final_proj.save()
+
+
+
+def calculateNumber(text, column, has_special_format=None):
+    errors = []
+    is_ammount = column["type"] == "ammount"
+
+    new_value = text
+    #Sustituimos las Bs por 8
+    new_value = re.sub(r'(B)', '8', new_value)
+    #Sustituimos las Os por 0
+    new_value = re.sub(r'(O)', '0', new_value)
+    #Quitamos los paréntesis que hacen ruido con (100)  y (1)
+    new_value = re.sub(r'[\(\)]', '', new_value)
+    #Sustituimos las Ss por 5
+    new_value = re.sub(r'(s|S)', '5', new_value)
+    #Sustituimos los diagonales por comas
+    new_value = re.sub(r'(/)', ',', new_value)
+    #por si se trata de una división entre 0 impresa
+    has_error_excel = bool(re.search(r'D.V', new_value))
+    #Nos quedamos con números y algunas letras, no más:
+    new_value = re.sub(r'[^0-9\,\.\-\%]', '', new_value)
+    ##Limpieza básica de espacios:
+    ##new_value = new_value.strip()
+    ##Se quitan los espacios alrededor de puntos y comas (siempre a puntos)
+    ## 4 , 5 --> 4,5
+    ##new_value = re.sub(r'(\d)\s?[\.\,]\s?(\d)', '\\1.\\2', new_value)
+    #Se sustituyen las comas por puntos
+    new_value = re.sub(r'(\,)', '.', new_value)
+    # Patrón REGEX para números (montos) válidos.
+    re_ammount = re.compile( r'^\d{1,7}(\.\d{2})?$')
+    # Patrón REGEX para porcentajes válidos.
+    re_percent = re.compile( r'^\-?\d{1,3}(\.\d{1,2})?[4895%]?\)?$')
+    re_compara = re_ammount if is_ammount else re_percent
+    has_percent = re.compile(r'[4895%]$')
+    has_decimals = re.compile(r'\d{2}$')
+    re_format = has_decimals if is_ammount else has_percent    
+    
+    ##if not is_ammount:
+        ##Se quita el espacio entre el número y el porcentaje, en caso de existir.
+        ##new_value = re.sub(r'(\d)\s?%', '\\1%', new_value)
+        ##Se quitan los espacios después del abrir paréntesis y antes de cerrarlos
+        ##new_value = re.sub(r'\(\s?(.*)(\S+)\s?\)', '(\\1\\2)', new_value)
+        ##new_value = re.sub(r'\(\s?(.+)\s?\)', '\\1', new_value)
+    ##else:
+    if is_ammount:
+        #Si después de los puntos hay 3 caracteres, los eliminamos,
+        #con la idea de dejar máximo un punto decimal
+        new_value = re.sub(r'\.(\d{3})', '\\1', new_value)
+
+    #Se busca si tienen alguno de los formatos posibles:
+    correct_format = bool(re_compara.search(new_value))
+
+    #si se trata de un simple conteo de formatos especiales:
+    if has_special_format == None:
+        if not correct_format:
+            return None
+        return 1 if bool(re_format.search(new_value)) else 0
+
+    if not correct_format:
+        if has_error_excel and not is_ammount:
+            new_value = '0%' if has_special_format else '0'
+        else:
+            errors.append(u"Formato incorrecto en columna %s"%column["title"])
+    only_ints = new_value
+    #Limpieza de porcentajes
+    if (has_special_format and not is_ammount):
+        only_ints = re.sub(re_format, '', only_ints)
+    #Forzamos un número flotante para su procesamiento como número
+    try:
+        float_value=float(only_ints)
+    except Exception as e:
+        only_ints = re.sub(re_format, '', only_ints)
+        try:
+            float_value=float(only_ints)
+        except Exception as e:
+            errors.append(u"No se pudo converir número en columna %s"%column["title"])
+            if only_ints:
+                try:
+                    print "error al convertir en calculateNumber: \"%s\""%text
+                except Exception as e:
+                    pass
+                print e
+            return None, errors
+    #Algunos números que si los obtenemos, significa un problema
+    if (is_ammount and 0 < float_value < 1000) or float_value > 10000000:
+        errors.append(u"Número inválido en columna %s"%column["title"])
+    elif not is_ammount and float_value > 2:
+        float_value = float_value/float(100)
+    return float_value, errors
+
