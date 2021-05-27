@@ -57,12 +57,11 @@ class PublicAccountMatchMix:
             final_project__isnull=False).count()
 
         for orphan_row in all_orphan_rows:
-            formatted_data = row.get_formatted_data()
+            formatted_data = orphan_row.get_formatted_data()
             if formatted_data:
-                print "----------------"
-                print formatted_data[0]
                 # orphan_fps = final_projects.filter(row__isnull=True)
-                flexibleMatchSuburb_v3(row, formatted_data[0], final_projects)
+                flexibleMatchSuburb_v3(orphan_row,
+                                       formatted_data[0], final_projects)
         print u"total coincidencias: ", all_rows.filter(
             final_project__isnull=False).count()
 
@@ -169,7 +168,7 @@ def flexibleMatchSuburb_v3(row, sub_name, final_projects):
     from public_account.models import Row
     from difflib import SequenceMatcher
     # print u"----------------flexibleMatchSuburb_v3--------------------"
-    if sub_name:
+    if not sub_name:
         return
     max_conc = 0
     # sub_id = None
@@ -180,8 +179,8 @@ def flexibleMatchSuburb_v3(row, sub_name, final_projects):
                                       sub_name).ratio()
         if Row.objects.filter(final_project=fp).exists():
             concordance -= 0.001
-        else:
-            print "%s : %s" % (fp.suburb.short_name, concordance)
+        #else:
+        #    print "%s : %s" % (fp.suburb.short_name, concordance)
         if concordance > 0.8 and concordance > max_conc:
             max_fp = fp
             # match_row_idx = row_idx
