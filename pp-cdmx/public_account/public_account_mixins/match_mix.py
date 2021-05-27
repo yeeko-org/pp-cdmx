@@ -6,18 +6,19 @@ class PublicAccountMatchMix:
 
     def calculate_match_v3(self, reset=False, image_num=None):
         from project.models import FinalProject
-        from public_account.models import PPImage, Row
+        # from public_account.models import PPImage, Row
+        from public_account.models import Row
         print
         print
         print "----Cuenta publica %s, id: %s----" % (self, self.id)
         # import numpy
         # suburbs_dict = []
 
-        all_images = PPImage.objects.filter(public_account=self)
-        if image_num:
-            all_images = all_images.filter(path__icontains=image_num)
+        # all_images = PPImage.objects.filter(public_account=self)
+        # if image_num:
+        #     all_images = all_images.filter(path__icontains=image_num)
 
-        all_images = all_images.order_by("path")
+        # all_images = all_images.order_by("path")
 
         final_projects = FinalProject.objects\
             .filter(suburb__townhall=self.townhall, period_pp=self.period_pp)
@@ -46,7 +47,10 @@ class PublicAccountMatchMix:
                 print "no hay new_sub_id"
 
         # all_orphan_rows = self.get_orphan_rows()
-        all_orphan_rows = Row.objects.filter(final_project__isnull=True)
+        # all_orphan_rows = Row.objects.filter(final_project__isnull=True)
+        # ###limitado solo a los row de la cuenta publica?
+        all_orphan_rows = Row.objects.filter(
+            final_project__isnull=True, image__public_account=self)
         for orphan_row in all_orphan_rows:
             formatted_data = row.get_formatted_data()
             if len(formatted_data):
@@ -69,18 +73,20 @@ def calculateSuburb_v3(row, final_projects):
     normal_name = formatted_data[0]
     # cve --> El id de la Colonia (Suburb) que haya coincidido si se encontró
     # una clave y si coincidió esa clave con lo que había en base de datos.
-    cve = get_cve(normal_name, final_projects, row)
+
+    # ### esto devuelve el sub_id, no el cve
+    sub_id_by_cve = get_cve(normal_name, final_projects, row)
     # Id es el ID de la colonia que encontró a partir del nombre normalizado.
     sub_id = get_suburb_id(normal_name, final_projects, row)
 
     # El extrañísimo (pero siempre es posible) caso de que existan dos
     # alcaldías distintas en el mismo lugar.
-    if sub_id and cve and sub_id != cve:
+    if sub_id and sub_id_by_cve and sub_id != sub_id_by_cve:
         row.set_errors("Doble coincidencia: por clave y por nombre")
-        return cve, normal_name
-    cve_in_proj = get_cve(formatted_data[1], final_projects, row)
+        return sub_id_by_cve, normal_name
+    sub_id_by_cve_in_proj = get_cve(formatted_data[1], final_projects, row)
     # Se devuelve la primera coincidencia:
-    return cve or sub_id or cve_in_proj, normal_name
+    return sub_id_by_cve or sub_id or sub_id_by_cve_in_proj, normal_name
 
 
 def get_cve(text, final_projects, row):
@@ -113,10 +119,11 @@ def get_suburb_id(normal_name, final_projects, row):
     # La búsqueda se hace entre las Colonias que no han tenido coincidencias,
     # para no repetir dos registros idénticos.
     subs_found = final_projects.filter(suburb__short_name=normal_name)
-    if subs_found.count() > 1:
+    subs_found_count = subs_found.count()
+    if subs_found_count > 1:
         err = u"Varias colonias coincidentes con %s" % normal_name
         row.set_errors(err)
-    if subs_found.count():
+    if subs_found_count:
         return subs_found.first().id
     else:
         return None
