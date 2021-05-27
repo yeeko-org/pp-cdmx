@@ -11,7 +11,11 @@ from period.models import PeriodPP
 
 from project.models import FinalProject
 
-from .pp_image_mix import PPImageDataProcessingMix
+from .pp_image_mixins.config_mix import PPImageMix
+from .pp_image_mixins.data_processing_mix import PPImageDataProcessingMix
+from .pp_image_mixins.old_mix import PPImageOldMix
+from .pp_image_mixins.references_mix import PPImageReferencesMix
+from .pp_image_mixins.vision_mix import PPImageVisionMix
 
 from .public_account_mixins.cleaner_mix import PublicAccountCleanerMix
 from .public_account_mixins.config_mix import PublicAccountMix
@@ -109,7 +113,9 @@ class PublicAccount(models.Model, PublicAccountCleanerMix,
         verbose_name_plural = u"Cuentas Publicas"
 
 
-class PPImage(models.Model, PPImageDataProcessingMix):
+class PPImage(models.Model, PPImageMix,
+              PPImageDataProcessingMix, PPImageOldMix,
+              PPImageReferencesMix, PPImageVisionMix):
     public_account = models.ForeignKey(
         PublicAccount, related_name=u"pp_images")
     path = models.CharField(max_length=255)
