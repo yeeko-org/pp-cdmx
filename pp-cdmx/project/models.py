@@ -108,9 +108,9 @@ class FinalProject(models.Model):
     similar_suburb_name = models.DecimalField(
         max_digits=3, decimal_places=2, default=0, blank=True, null=True,
         verbose_name=u"Nivel de similitud de nombre (-1 cuando es forzado)")
-    name_in_pa= models.CharField( max_length=140, blank=True, null=True,
+    name_in_pa = models.CharField(max_length=140, blank=True, null=True,
         verbose_name=u"Nombre como aparece en cuenta pública")
-    json_variables = models.TextField(blank=True, null=True, 
+    json_variables = models.TextField(blank=True, null=True,
         verbose_name=u"Variables originales de su columna")
     error_cell = models.TextField(blank=True, null=True, 
         verbose_name=u"pila de errores")
@@ -122,7 +122,7 @@ class FinalProject(models.Model):
     
     variation_calc = models.FloatField(blank=True, null=True)
 
-    range=models.CharField(max_length=50, blank=True, null=True)
+    range = models.CharField(max_length=50, blank=True, null=True)
 
     # pre_clasification
     # manuela_

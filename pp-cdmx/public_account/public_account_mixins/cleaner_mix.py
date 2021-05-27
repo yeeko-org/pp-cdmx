@@ -36,7 +36,6 @@ class PublicAccountCleanerMix:
         special_formats = self.calculate_special_formats_v3(
             all_images, column_types[3:], image_num)
 
-        seq = 1
         """
         Una vez obtenido los valores de special_formats, se tratan los datos:
         """
@@ -61,13 +60,12 @@ class PublicAccountCleanerMix:
                 set_new_error(
                     self, "La imagen %s no proceso Table Data" % image)
             for row in all_rows:
-                seq += 1
                 errors = row.get_errors()
                 # Intentamos obtener de forma simple el id de la colonia.
                 vision_data = row.get_vision_data()
 
                 row_data = []
-                valid_row
+                valid_row = None
 
                 for idx, col in enumerate(vision_data):
                     if idx > 2:
@@ -84,19 +82,19 @@ class PublicAccountCleanerMix:
                         final_value = get_normal_name(col)
                         valid_row = final_value
                     row_data.append(final_value)
-                    if final_value && idx:
-                        row[column_types[idx].field] = final_value
+                    if final_value and idx:
+                        setattr(row, column_types[idx]["field"], final_value)
                 #print vision_data[0]
                 #print row_data
-                if valid_row == False:
+                if valid_row is False:
                     continue
                 row.formatted_data = json.dumps(row_data)
-                row.errors = json.dumps(errors)
                 if not valid_row:
                     errors.append("Fila sin información de colonia")
-                else:
-                    row.sequential = seq
-                row = set_values_row(row)
+                #else:
+                    #row.sequential = seq
+                row.errors = json.dumps(errors)
+                #row = set_values_row(row)
                 row.save()
         # return
 
@@ -185,8 +183,9 @@ column_types = [
 ]
 
 
-# #Esta función hace una estandarización y limpieza de nombres para facilitar
-# #encontrar similitudes entre los nombres oficiales y los que ponen las alcaldías
+# Esta función hace una estandarización y limpieza de nombres para facilitar
+# encontrar similitudes entre los nombres oficiales y los que ponen las
+# alcaldías
 def cleanSuburbName(text):
     import unidecode
     # Primero estandarizamos los carácteres de español como acentos o eñes
@@ -212,10 +211,12 @@ def cleanSuburbName(text):
     final_name = re.sub(r'\s?\)', r')', final_name)
     # Algunos remplazos comunes de alternativas de nombramiento:
     re_uhab = re.compile(
-        r'\(\s?(CONJ HAB|UNIDAD HABITACIONAL|U HABS|CONJUNTO HABITACIONAL)\s?\)')
+        r'\(\s?(CONJ HAB|UNIDAD HABITACIONAL|U HABS'
+        r'|CONJUNTO HABITACIONAL)\s?\)')
     final_name = re.sub(re_uhab, r'(U HAB)', final_name)
     final_name = re.sub(r'\(\s?(FRACCIONAMIENTO)\s?\)', '(FRACC)', final_name)
-    final_name = re.sub(ur'\(\s?(AMPLIACION|AMPLIACIÓN)\s?\)', '(AMPL)', final_name)
+    final_name = re.sub(ur'\(\s?(AMPLIACION|AMPLIACIÓN)\s?\)',
+                        '(AMPL)', final_name)
     final_name = re.sub(ur'^(COMITE|COMITÉ|COLONIA)\s', '', final_name)
     # Eliminamos la clave en el normal_name (se hace un análisis aparte)
     # La clave de las colonias tiene el formato DD-AAA donde DD es la clave de
@@ -238,10 +239,10 @@ def get_normal_name(text):
     if bool(re.search(
             r'(COLONIA O PUEBLO|ORIGINARIO|UNIDAD RESPON)', normal_name)):
         return False
-    # Esto significa que llegamos al final, son palabras que no están en ninguna
-    # colonia y siempre están en el pie de página.
-    elif bool(re.search(r'(REFIERE|REMANENTE|TOTAL|AUTORI|ELABORO|LABORADO|DIRECTOR)',
-                        normal_name)):
+    # Esto significa que llegamos al final, son palabras que no están en
+    # ninguna colonia y siempre están en el pie de página.
+    elif bool(re.search(r'(REFIERE|REMANENTE|TOTAL'
+                        r'|AUTORI|ELABORO|LABORADO|DIRECTOR)', normal_name)):
         return False
     # Ninguna Colonia tiene un nombre tan corto, entonces devolvemos un None
     # para saber que por sí misma no puede ser una colonia, es el caso de que
@@ -261,28 +262,6 @@ def clean_text(text):
     final_text = re.sub(r'(\)|\:|\,|\.|\;|\?|\!)(\w)', '\\1 \\2', final_text)
     final_text = final_text.strip()
     return final_text
-
-def set_values_row(row):
-
-    import json
-    for column in column_types:
-        curr_amm = sub_row.get("number_data", {}).get(ammount)
-        if curr_amm:
-            if curr_amm["correct_format"]:
-                setattr(final_proj, ammount, curr_amm.get("final_value"))
-                final_proj.inserted_data = True
-            else:
-                set_new_error(
-                    final_proj,
-                    u"%s >> formato incorrecto: %s" % (
-                        ammount, curr_amm.get("raw_unity")))
-        else:
-            set_new_error(final_proj,
-                          u"%s >> No tiene ningún valor " % ammount)
-
-        final_proj.image = self
-    final_proj.save()
-
 
 
 def calculateNumber(text, column, has_special_format=None):
@@ -304,28 +283,29 @@ def calculateNumber(text, column, has_special_format=None):
     has_error_excel = bool(re.search(r'D.V', new_value))
     #Nos quedamos con números y algunas letras, no más:
     new_value = re.sub(r'[^0-9\,\.\-\%]', '', new_value)
-    ##Limpieza básica de espacios:
-    ##new_value = new_value.strip()
-    ##Se quitan los espacios alrededor de puntos y comas (siempre a puntos)
-    ## 4 , 5 --> 4,5
-    ##new_value = re.sub(r'(\d)\s?[\.\,]\s?(\d)', '\\1.\\2', new_value)
-    #Se sustituyen las comas por puntos
+    # Limpieza básica de espacios:
+    # new_value = new_value.strip()
+    # Se quitan los espacios alrededor de puntos y comas (siempre a puntos)
+    # 4 , 5 --> 4,5
+    # new_value = re.sub(r'(\d)\s?[\.\,]\s?(\d)', '\\1.\\2', new_value)
+    # Se sustituyen las comas por puntos
     new_value = re.sub(r'(\,)', '.', new_value)
     # Patrón REGEX para números (montos) válidos.
-    re_ammount = re.compile( r'^\d{1,7}(\.\d{2})?$')
+    re_ammount = re.compile(r'^\d{1,7}(\.\d{2})?$')
     # Patrón REGEX para porcentajes válidos.
-    re_percent = re.compile( r'^\-?\d{1,3}(\.\d{1,2})?[4895%]?\)?$')
+    re_percent = re.compile(r'^\-?\d{1,3}(\.\d{1,2})?[4895%]?\)?$')
     re_compara = re_ammount if is_ammount else re_percent
     has_percent = re.compile(r'[4895%]$')
     has_decimals = re.compile(r'\d{2}$')
-    re_format = has_decimals if is_ammount else has_percent    
-    
-    ##if not is_ammount:
-        ##Se quita el espacio entre el número y el porcentaje, en caso de existir.
-        ##new_value = re.sub(r'(\d)\s?%', '\\1%', new_value)
-        ##Se quitan los espacios después del abrir paréntesis y antes de cerrarlos
-        ##new_value = re.sub(r'\(\s?(.*)(\S+)\s?\)', '(\\1\\2)', new_value)
-        ##new_value = re.sub(r'\(\s?(.+)\s?\)', '\\1', new_value)
+    re_format = has_decimals if is_ammount else has_percent
+    # if not is_ammount:
+    #     # Se quita el espacio entre el número y el porcentaje, en caso de
+    #     # existir.
+    #     new_value = re.sub(r'(\d)\s?%', '\\1%', new_value)
+    #     # Se quitan los espacios después del abrir paréntesis y antes de
+    #     # cerrarlos
+    #     new_value = re.sub(r'\(\s?(.*)(\S+)\s?\)', '(\\1\\2)', new_value)
+    #     new_value = re.sub(r'\(\s?(.+)\s?\)', '\\1', new_value)
     ##else:
     if is_ammount:
         #Si después de los puntos hay 3 caracteres, los eliminamos,
@@ -336,7 +316,7 @@ def calculateNumber(text, column, has_special_format=None):
     correct_format = bool(re_compara.search(new_value))
 
     #si se trata de un simple conteo de formatos especiales:
-    if has_special_format == None:
+    if has_special_format is None:
         if not correct_format:
             return None
         return 1 if bool(re_format.search(new_value)) else 0
@@ -345,31 +325,34 @@ def calculateNumber(text, column, has_special_format=None):
         if has_error_excel and not is_ammount:
             new_value = '0%' if has_special_format else '0'
         else:
-            errors.append(u"Formato incorrecto en columna %s"%column["title"])
+            err = u"Formato incorrecto en columna %s" % column["title"]
+            errors.append(err)
     only_ints = new_value
     #Limpieza de porcentajes
     if (has_special_format and not is_ammount):
         only_ints = re.sub(re_format, '', only_ints)
     #Forzamos un número flotante para su procesamiento como número
     try:
-        float_value=float(only_ints)
+        float_value = float(only_ints)
     except Exception as e:
         only_ints = re.sub(re_format, '', only_ints)
         try:
-            float_value=float(only_ints)
+            float_value = float(only_ints)
         except Exception as e:
-            errors.append(u"No se pudo converir número en columna %s"%column["title"])
+            errors.append(
+                u"No se pudo converir número en columna %s"
+                % column["title"])
             if only_ints:
                 try:
-                    print "error al convertir en calculateNumber: \"%s\""%text
+                    print ("error al convertir en calculateNumber: \"%s\""
+                           % text)
                 except Exception as e:
                     pass
                 print e
             return None, errors
     #Algunos números que si los obtenemos, significa un problema
     if (is_ammount and 0 < float_value < 1000) or float_value > 10000000:
-        errors.append(u"Número inválido en columna %s"%column["title"])
+        errors.append(u"Número inválido en columna %s" % column["title"])
     elif not is_ammount and float_value > 2:
-        float_value = float_value/float(100)
+        float_value = float_value / float(100)
     return float_value, errors
-

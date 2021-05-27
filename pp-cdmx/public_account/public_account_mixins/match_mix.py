@@ -29,7 +29,10 @@ class PublicAccountMatchMix:
         # Intentamos obtener los datos que nos interesan
         # print image.path
         # Por cada fila de datos:
-        all_rows = Row.objects.filter(image__public_account=self)
+        all_rows = Row.objects.filter(
+            image__public_account=self,
+            formatted_data__isnull=False)\
+            .exclude(formatted_data="[]")
 
         for row in all_rows:
             # errors = row.get_errors()
@@ -44,24 +47,31 @@ class PublicAccountMatchMix:
                     sub_id, row, final_projects)
                 # sub_id, all_row)
             if not new_sub_id:
-                print "no hay new_sub_id"
+                print "no hay new_sub_id: ", normal_name
 
         # all_orphan_rows = self.get_orphan_rows()
-        # all_orphan_rows = Row.objects.filter(final_project__isnull=True)
+        all_orphan_rows = all_rows.filter(final_project__isnull=True)
         # ###limitado solo a los row de la cuenta publica?
-        all_orphan_rows = Row.objects.filter(
-            final_project__isnull=True, image__public_account=self)
+        print "total rows: ", all_rows.count()
+        print u"coincidencia exacta: ", all_rows.filter(
+            final_project__isnull=False).count()
+
         for orphan_row in all_orphan_rows:
             formatted_data = row.get_formatted_data()
-            if len(formatted_data):
+            if formatted_data:
+                print "----------------"
+                print formatted_data[0]
                 # orphan_fps = final_projects.filter(row__isnull=True)
                 flexibleMatchSuburb_v3(row, formatted_data[0], final_projects)
+        print u"total coincidencias: ", all_rows.filter(
+            final_project__isnull=False).count()
 
         return
 
 
-# #Esta función hace una estandarización y limpieza de nombres para facilitar
-# #encontrar similitudes entre los nombres oficiales y los que ponen las alcaldías
+# Esta función hace una estandarización y limpieza de nombres para facilitar
+# encontrar similitudes entre los nombres oficiales y los que ponen las
+# alcaldías
 
 # def calculateSuburb_v3(text, maybe_cve, image):
 def calculateSuburb_v3(row, final_projects):
@@ -70,7 +80,11 @@ def calculateSuburb_v3(row, final_projects):
     sub_id = None
 
     formatted_data = row.get_formatted_data()
+    if not formatted_data:
+        return None, None
+
     normal_name = formatted_data[0]
+
     # cve --> El id de la Colonia (Suburb) que haya coincidido si se encontró
     # una clave y si coincidió esa clave con lo que había en base de datos.
 
@@ -107,7 +121,8 @@ def get_cve(text, final_projects, row):
         # sea más grande que eso
         if int(cve_suburb[:2]) < 17:
             try:
-                sub_id = final_projects.get(suburb__cve_col=cve_suburb).id
+                sub_id = final_projects.get(suburb__cve_col=cve_suburb)\
+                    .suburb.id
             except Exception:
                 err = "Algo que parece clave no se encontró (%s)" % cve_suburb
                 row.set_errors(err)
@@ -124,7 +139,7 @@ def get_suburb_id(normal_name, final_projects, row):
         err = u"Varias colonias coincidentes con %s" % normal_name
         row.set_errors(err)
     if subs_found_count:
-        return subs_found.first().id
+        return subs_found.first().suburb.id
     else:
         return None
 
@@ -139,7 +154,7 @@ def saveFinalProjSuburb_v3(sub_id, row, final_projects, simil=1):
     except FinalProject.DoesNotExist:
         print "No se enontró sub_id en función saveFinalProjSuburb_v3"
         return None
-    row.final_proy = final_proy
+    row.final_project = final_proy
     row.similar_suburb_name = simil
     # for idx, value in enumerate(row_data.get("data")):
     #     if idx:
@@ -154,7 +169,8 @@ def flexibleMatchSuburb_v3(row, sub_name, final_projects):
     from public_account.models import Row
     from difflib import SequenceMatcher
     # print u"----------------flexibleMatchSuburb_v3--------------------"
-
+    if sub_name:
+        return
     max_conc = 0
     # sub_id = None
     # match_row_idx = -1
@@ -164,6 +180,8 @@ def flexibleMatchSuburb_v3(row, sub_name, final_projects):
                                       sub_name).ratio()
         if Row.objects.filter(final_project=fp).exists():
             concordance -= 0.001
+        else:
+            print "%s : %s" % (fp.suburb.short_name, concordance)
         if concordance > 0.8 and concordance > max_conc:
             max_fp = fp
             # match_row_idx = row_idx
