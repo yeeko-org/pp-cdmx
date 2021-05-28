@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from rest_framework import serializers
 
-from public_account.models import (PublicAccount, PPImage)
+from public_account.models import (PublicAccount, PPImage, Row)
 
 from project.models import FinalProject
 from geographic.api.serializers import SuburbFullSerializer
@@ -48,7 +48,6 @@ class AmountVariationSuburbsSerializer(serializers.ModelSerializer):
         # depth = 2
 
 
-
 from geographic.api.serializers import TownHallSerializer, PeriodPPSerializer
 
 class PPImageSerializer(serializers.ModelSerializer):
@@ -78,13 +77,7 @@ class PublicAccountList(serializers.ModelSerializer):
     townhall = serializers.ReadOnlyField(source="townhall.name")
     period_pp = serializers.ReadOnlyField(source="period_pp.year")
     # period_pp = PeriodPPSerializer()
-    #orphan_rows_count = serializers.SerializerMethodField()
     pp_images = PPImageSerializer(many=True)
-    def get_orphan_rows_count(self, obj):
-        try:
-            return len(obj.get_orphan_rows())
-        except Exception as e:
-            return None
     class Meta:
         model= PublicAccount
         fields = [
@@ -98,7 +91,7 @@ class PublicAccountList(serializers.ModelSerializer):
             "pp_images"
         ]
 
-class PublicAccountRetrieve(PublicAccountList):
+class PublicAccountRetrieve(serializers.ModelSerializer):
     class Meta:
         model= PublicAccount
         fields = [
@@ -109,40 +102,67 @@ class PublicAccountRetrieve(PublicAccountList):
             "status"
         ]
 
+class RowSerializer(serializers.ModelSerializer):
+    formatted_data = serializers.ReadOnlyField(source="get_formatted_data")
+    vision_data = serializers.ReadOnlyField(source="get_vision_data")
+    errors = serializers.ReadOnlyField(source="get_errors")
+    class Meta:
+        model= Row
+        fields = [
+            "final_project",
+            "project_name",
+            "description",
+            "progress",
+            "approved",
+            "modified",
+            "executed",
+            "variation",
+            "validated",
+            "similar_suburb_name",
+            "variation_calc",
+            "range",
+            "errors",
+            "sequential",
+            "vision_data",
+            "formatted_data",
+            "top",
+            "bottom",
+        ]
+        read_only_fields = [
+            "similar_suburb_name",
+            "variation_calc",
+            "range",
+            "errors",
+            "sequential",
+            "vision_data",
+            "formatted_data",
+            "top",
+            "bottom",
+        ]
+
+
 class PPImageSimpleSerializer(PublicAccountList):
     json_variables = serializers.SerializerMethodField()
+
     def get_json_variables(self, obj):
         try:
             return obj.get_json_variables()
         except Exception as e:
             return None
     manual_ref = serializers.SerializerMethodField()
+
     def get_manual_ref(self, obj):
         try:
             return obj.get_manual_ref()
         except Exception as e:
             return None
-    table_data = serializers.SerializerMethodField()
-    def get_table_data(self, obj):
-        try:
-            return obj.get_table_data()
-        except Exception as e:
-            return None
-
-    table_ref = serializers.SerializerMethodField()
-    def get_table_ref(self, obj):
-        try:
-            return obj.get_table_ref()
-        except Exception as e:
-            return None
 
     class Meta:
-        model= PPImage
+        model = PPImage
         fields = [
             "id",
             "path",
             "json_variables",
-            "table_data",
-            "table_ref",
             "manual_ref",
+            "table_ref_columns",
         ]

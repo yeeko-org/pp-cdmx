@@ -2,6 +2,7 @@
 from rest_framework import serializers
 
 from project.models import (Project, FinalProject, AnomalyFinalProject)
+from public_account.models import Row
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -23,16 +24,12 @@ class AnomalyFinalProjectSerializer(serializers.ModelSerializer):
 
 
 class FinalProjectSerializer(serializers.ModelSerializer):
+    from public_account.api.serializers import RowSerializer
     projects = ProjectSerializer(many=True)
     year = serializers.ReadOnlyField(source="period_pp.year", default=None)
     anomalies = serializers.SerializerMethodField()
-    def get_anomalies(self, obj):
-        try:
-            anoms_fp = AnomalyFinalProject.objects.filter(final_project=obj, 
-                    anomaly__is_public=True)
-            return AnomalyFinalProjectSerializer(anoms_fp, many=True).data
-        except Exception as e:
-            return None
+    rows = RowSerializer(many=True)
+
     class Meta:
         model = FinalProject
         fields = [
@@ -41,19 +38,10 @@ class FinalProjectSerializer(serializers.ModelSerializer):
             "year",
             "project",
             "total_votes",
-            "description_cp",
-            "project_cp",
-            "final_name",
-            "assigned",
-            "approved",
-            "modified",
-            "executed",
-            "progress",
             "manual_capture",
             #"observation",
             #"pre_clasification",
             "projects",
-            "anomalies",
         ]
         # depth = 2
 
@@ -100,8 +88,37 @@ class FinalProjectSmallSerializer(serializers.ModelSerializer):
 class FinalProjectOrphanSerializer(serializers.ModelSerializer):
     suburb_name = serializers.ReadOnlyField(source="suburb.name")
     suburb_short_name = serializers.ReadOnlyField(source="suburb.short_name")
+    suburb_cve_col = serializers.ReadOnlyField(source="suburb.cve_col")
 
-    project_name_iecm = serializers.ReadOnlyField(source="project.name_iecm")
+    #project_name_iecm = serializers.ReadOnlyField(source="project.name_iecm")
+    period_pp = serializers.ReadOnlyField(source="period_pp.year")
+    rows_count = serializers.SerializerMethodField()
+
+    def get_rows_count(self, obj):
+        return Row.objects.filter(final_project=obj).count()
+
+    class Meta:
+        model = FinalProject
+        fields = [
+            "id",
+            "suburb",
+            "suburb_name",
+            "suburb_short_name",
+            "suburb_cve_col",
+            #"project",
+            #"project_name_iecm",
+            "period_pp",
+            "rows_count",
+        ]
+        # depth = 2
+
+
+class FinalProjectRefsSerializer(serializers.ModelSerializer):
+    suburb_name = serializers.ReadOnlyField(source="suburb.name")
+    suburb_short_name = serializers.ReadOnlyField(source="suburb.short_name")
+    #from geographic.api.serializers import TownHallSerializer
+    #suburb = TownHallSerializer()
+
     period_pp = serializers.ReadOnlyField(source="period_pp.year")
 
     class Meta:
@@ -112,55 +129,5 @@ class FinalProjectOrphanSerializer(serializers.ModelSerializer):
             "suburb_name",
             "suburb_short_name",
             "project",
-            "project_name_iecm",
             "period_pp",
-            "image",
         ]
-        # depth = 2
-
-class FinalProjectRefsSerializer(serializers.ModelSerializer):
-    suburb_name = serializers.ReadOnlyField(source="suburb.name")
-    #from geographic.api.serializers import TownHallSerializer
-    #suburb = TownHallSerializer()
-
-    period_pp = serializers.ReadOnlyField(source="period_pp.year")
-    data_raw = serializers.SerializerMethodField()
-    def get_data_raw(self, obj):
-        try:
-            return obj.get_data_raw()
-        except Exception as e:
-            return None
-    anomalies = serializers.SerializerMethodField()
-    def get_anomalies(self, obj):
-        try:
-            anoms_fp = AnomalyFinalProject.objects.filter(final_project=obj, 
-                    anomaly__is_public=False).exclude(anomaly__id=21)
-            return AnomalyFinalProjectSerializer(anoms_fp,many=True).data
-        except Exception as e:
-            return None
-
-    class Meta:
-        model = FinalProject
-        fields = [
-            "id",
-            "suburb",
-            "suburb_name",
-            "project",
-            "period_pp",
-            "description_cp",
-            "project_cp",
-            "final_name",
-            "assigned",
-            "approved",
-            "modified",
-            "executed",
-            "variation",
-            "progress",
-            "validated",
-            "variation_calc",
-            "data_raw",
-            "anomalies",
-        ]
-
-
-

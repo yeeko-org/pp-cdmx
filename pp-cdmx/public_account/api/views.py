@@ -158,34 +158,32 @@ class ImageRefsView(views.APIView):
 
     def get(self, request, **kwargs):
         from project.models import FinalProject
-        from project.api.serializers import (FinalProjectRefsSerializer,
-            FinalProjectOrphanSerializer)
+        from public_account.models import Row
+        from project.api.serializers import (
+            FinalProjectRefsSerializer, FinalProjectOrphanSerializer)
+        from public_account.api.serializers import RowSerializer
         pp_image = kwargs.get(
             "pp_image", self.get_object(request, **kwargs))
 
-        fp_image_query = FinalProject.objects\
-            .filter(image=pp_image)\
-            .prefetch_related("project", "suburb")
+        curr_rows = Row.objects.filter(image=pp_image)
 
-        final_projects = FinalProjectRefsSerializer(fp_image_query, many=True)
+        rows = RowSerializer(curr_rows, many=True)
         
-        fp_orphan_query = FinalProject.objects\
+        fp_query = FinalProject.objects\
             .filter(
                 suburb__townhall=pp_image.public_account.townhall,
-                period_pp=pp_image.public_account.period_pp,
-                image__isnull=True)\
+                period_pp=pp_image.public_account.period_pp)\
             .order_by("suburb__short_name")\
-            .prefetch_related("project", "suburb")
+            .prefetch_related("suburb")
 
-        orphan_suburbs = FinalProjectOrphanSerializer(fp_orphan_query, many=True)
+        final_projects = FinalProjectOrphanSerializer(fp_query, many=True)
 
         image_data = serializers.PPImageSimpleSerializer(pp_image).data
 
         return Response({
             "image": image_data,
-            "orphan_rows": pp_image.public_account.get_orphan_rows(),
             "final_projects": final_projects.data,
-            "orphan_suburbs": orphan_suburbs.data,
+            "rows": rows,
         })
 
 

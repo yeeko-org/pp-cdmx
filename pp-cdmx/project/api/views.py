@@ -2,13 +2,10 @@
 from . import serializers
 
 from api.mixins import MultiSerializerListRetrieveUpdateMix
-from api.pagination import (
-    HeavyResultsSetPagination, StandardResultsSetPagination)
+from api.pagination import StandardResultsSetPagination
 
 from rest_framework import (permissions, views)
 from rest_framework.response import Response
-
-from period.models import PeriodPP
 
 from project.models import FinalProject
 
