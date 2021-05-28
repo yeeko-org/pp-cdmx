@@ -162,7 +162,8 @@ class PPImage(models.Model, PPImageMix,
 
 
 class Row(models.Model):
-    final_project = models.ForeignKey(FinalProject, blank=True, null=True)
+    final_project = models.ForeignKey(
+        FinalProject, blank=True, null=True, related_name=u"rows")
     image = models.ForeignKey(PPImage)
     project_name = models.TextField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)

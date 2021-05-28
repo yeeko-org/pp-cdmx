@@ -50,6 +50,7 @@ class AmountVariationSuburbsSerializer(serializers.ModelSerializer):
 
 from geographic.api.serializers import TownHallSerializer, PeriodPPSerializer
 
+
 class PPImageSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -59,6 +60,7 @@ class PPImageSerializer(serializers.ModelSerializer):
             "validated",
             "path",
         ]
+
 
 class PPImageUpdateSerializer(serializers.ModelSerializer):
 
@@ -72,14 +74,16 @@ class PPImageUpdateSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["path"]
 
+
 class PublicAccountList(serializers.ModelSerializer):
     #townhall = TownHallSerializer()
     townhall = serializers.ReadOnlyField(source="townhall.name")
     period_pp = serializers.ReadOnlyField(source="period_pp.year")
     # period_pp = PeriodPPSerializer()
     pp_images = PPImageSerializer(many=True)
+
     class Meta:
-        model= PublicAccount
+        model = PublicAccount
         fields = [
             "id",
             "townhall",
@@ -91,9 +95,11 @@ class PublicAccountList(serializers.ModelSerializer):
             "pp_images"
         ]
 
+
 class PublicAccountRetrieve(serializers.ModelSerializer):
+
     class Meta:
-        model= PublicAccount
+        model = PublicAccount
         fields = [
             "id",
             "townhall_id",
@@ -102,13 +108,16 @@ class PublicAccountRetrieve(serializers.ModelSerializer):
             "status"
         ]
 
+
 class RowSerializer(serializers.ModelSerializer):
     formatted_data = serializers.ReadOnlyField(source="get_formatted_data")
     vision_data = serializers.ReadOnlyField(source="get_vision_data")
     errors = serializers.ReadOnlyField(source="get_errors")
+
     class Meta:
-        model= Row
+        model = Row
         fields = [
+            "id",
             "final_project",
             "project_name",
             "description",

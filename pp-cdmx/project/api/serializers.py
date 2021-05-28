@@ -30,9 +30,17 @@ class FinalProjectSerializer(serializers.ModelSerializer):
     anomalies = serializers.SerializerMethodField()
     rows = RowSerializer(many=True)
 
+    def get_anomalies(self, obj):
+        from classification.api.serializers import AnomalySerializer
+        from classification.models import Anomaly
+        anomaly_query = Anomaly.objects.filter(
+            anomalyfinalproject__final_project=obj).distinct()
+        return AnomalySerializer(anomaly_query, many=True).data
+
     class Meta:
         model = FinalProject
         fields = [
+            "id",
             "suburb",
             #"period_pp",
             "year",
@@ -42,6 +50,8 @@ class FinalProjectSerializer(serializers.ModelSerializer):
             #"observation",
             #"pre_clasification",
             "projects",
+            "rows",
+            "anomalies",
         ]
         # depth = 2
 

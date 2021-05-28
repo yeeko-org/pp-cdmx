@@ -1,24 +1,29 @@
 # -*- coding: utf-8 -*-
-from . import serializers
-from rest_framework import (permissions, views, status)
-from rest_framework.exceptions import (
-    NotFound, PermissionDenied, ValidationError)
-from rest_framework.response import Response
+from api.mixins import MultiSerializerListRetrieveMix
+from api.mixins import MultiSerializerListRetrieveUpdateMix as ListRetrieveUpdateMix
+from api.pagination import (
+    StandardResultsSetPagination,
+    # HeavyResultsSetPagination
+)
 
 from django.conf import settings as dj_settings
 
-from api.mixins import MultiSerializerListRetrieveMix
-from api.mixins import MultiSerializerListRetrieveUpdateMix as ListRetrieveUpdateMix
-
 from geographic.models import TownHall
-
-from public_account.models import PublicAccount, PPImage
 
 from project.models import FinalProject
 
+from public_account.models import PPImage, PublicAccount, Row
 
-from api.pagination import (StandardResultsSetPagination,
-                            HeavyResultsSetPagination)
+from rest_framework import (permissions, views)
+from rest_framework.exceptions import (
+    NotFound,
+    # PermissionDenied,
+    ValidationError)
+from rest_framework.response import Response
+
+
+from . import serializers
+
 
 class NextView(views.APIView):
     permission_classes = [permissions.AllowAny]
@@ -105,7 +110,7 @@ class AmountVariationTownhallView(views.APIView):
     def get(self, request, **kwargs):
         try:
             townhall = TownHall.objects.get(id=kwargs.get("townhall_id"))
-        except Exception as e:
+        except Exception:
             raise NotFound()
         final_projects = FinalProject.objects\
             .filter(suburb__townhall=townhall)
@@ -152,7 +157,7 @@ class ImageRefsView(views.APIView):
         try:
             pp_image = PPImage.objects.get(
                 id=kwargs.get("image_id"))
-        except Exception as e:
+        except Exception:
             raise NotFound()
         return pp_image
 
@@ -160,7 +165,8 @@ class ImageRefsView(views.APIView):
         from project.models import FinalProject
         from public_account.models import Row
         from project.api.serializers import (
-            FinalProjectRefsSerializer, FinalProjectOrphanSerializer)
+            # FinalProjectRefsSerializer,
+            FinalProjectOrphanSerializer)
         from public_account.api.serializers import RowSerializer
         pp_image = kwargs.get(
             "pp_image", self.get_object(request, **kwargs))
@@ -168,7 +174,7 @@ class ImageRefsView(views.APIView):
         curr_rows = Row.objects.filter(image=pp_image)
 
         rows = RowSerializer(curr_rows, many=True)
-        
+
         fp_query = FinalProject.objects\
             .filter(
                 suburb__townhall=pp_image.public_account.townhall,
@@ -194,7 +200,7 @@ class OrphanRowsView(views.APIView):
         try:
             public_account = PublicAccount.objects.get(
                 id=kwargs.get("public_account_id"))
-        except Exception as e:
+        except Exception:
             raise NotFound()
         return public_account
 
@@ -241,10 +247,10 @@ class OrphanRowsView(views.APIView):
             done_seqs.append(seq)
 
         orphan_rows = [seq_data for seq, seq_data in seqs.items()
-                       if not seq in done_seqs]
-        if match_review == True:
+                       if seq not in done_seqs]
+        if match_review:
             public_account.match_review = True
-        elif match_review == False:
+        elif not match_review:
             public_account.match_review = False
         public_account.set_orphan_rows(orphan_rows)
         public_account.comment_match = comment_match
@@ -263,3 +269,19 @@ class PPImageSetView(ListRetrieveUpdateMix):
     action_serializers = {
         "update": serializers.PPImageUpdateSerializer
     }
+
+
+class RowSetView(ListRetrieveUpdateMix):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = serializers.RowSerializer
+    queryset = Row.objects.all()
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self, *args, **kwargs):
+        pp_image_id = kwargs.get("pp_image_id")
+        if pp_image_id:
+            return Row.objects.filter(image__id=pp_image_id)
+        return Row.objects.all()
+    # action_serializers = {
+    #     "update": serializers.PPImageUpdateSerializer
+    # }
