@@ -2,7 +2,6 @@
 from rest_framework import serializers
 
 from project.models import (Project, FinalProject, AnomalyFinalProject)
-from public_account.models import Row
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -105,6 +104,7 @@ class FinalProjectOrphanSerializer(serializers.ModelSerializer):
     rows_count = serializers.SerializerMethodField()
 
     def get_rows_count(self, obj):
+        from public_account.models import Row
         return Row.objects.filter(final_project=obj).count()
 
     class Meta:

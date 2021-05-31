@@ -151,7 +151,7 @@ class RowSerializer(serializers.ModelSerializer):
 
 
 class PPImageSimpleSerializer(PublicAccountList):
-    json_variables = serializers.SerializerMethodField()
+    #json_variables = serializers.SerializerMethodField()
 
     def get_json_variables(self, obj):
         try:
@@ -171,7 +171,7 @@ class PPImageSimpleSerializer(PublicAccountList):
         fields = [
             "id",
             "path",
-            "json_variables",
+            #"json_variables",
             "manual_ref",
             "table_ref_columns",
         ]

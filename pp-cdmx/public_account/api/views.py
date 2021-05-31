@@ -173,7 +173,7 @@ class ImageRefsView(views.APIView):
 
         curr_rows = Row.objects.filter(image=pp_image)
 
-        rows = RowSerializer(curr_rows, many=True)
+        rows_serializer = RowSerializer(curr_rows, many=True)
 
         fp_query = FinalProject.objects\
             .filter(
@@ -182,14 +182,15 @@ class ImageRefsView(views.APIView):
             .order_by("suburb__short_name")\
             .prefetch_related("suburb")
 
-        final_projects = FinalProjectOrphanSerializer(fp_query, many=True)
+        final_projects_serializer = FinalProjectOrphanSerializer(
+            fp_query, many=True)
 
-        image_data = serializers.PPImageSimpleSerializer(pp_image).data
+        image_serializer = serializers.PPImageSimpleSerializer(pp_image)
 
         return Response({
-            "image": image_data,
-            "final_projects": final_projects.data,
-            "rows": rows,
+            "image": image_serializer.data,
+            "final_projects": final_projects_serializer.data,
+            "rows": rows_serializer.data,
         })
 
 
