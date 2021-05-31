@@ -9,6 +9,7 @@ from .views import (
 router = routers.DefaultRouter()
 router.register(r"image", PPImageSetView)
 router.register(r"row", RowSetView)
+router.register(r"(?P<pp_image_id>[-\d]+)/row", RowSetView)
 router.register(r"", PublicAccountSetView)
 
 urlpatterns = [

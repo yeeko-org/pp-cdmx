@@ -278,10 +278,17 @@ class RowSetView(ListRetrieveUpdateMix):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self, *args, **kwargs):
-        pp_image_id = kwargs.get("pp_image_id")
+        pp_image_id = self.kwargs.get("pp_image_id")
+        print pp_image_id
+        orphan = self.request.query_params.get("orphan")
+        row_filter_kwargs = {}
         if pp_image_id:
-            return Row.objects.filter(image__id=pp_image_id)
-        return Row.objects.all()
+            row_filter_kwargs["image__id"] = pp_image_id
+        if orphan == "true":
+            row_filter_kwargs["final_project__isnull"] = True
+        elif orphan == "false":
+            row_filter_kwargs["final_project__isnull"] = False
+        return Row.objects.filter(**row_filter_kwargs)
     # action_serializers = {
     #     "update": serializers.PPImageUpdateSerializer
     # }
