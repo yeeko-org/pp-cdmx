@@ -3,6 +3,8 @@ from __future__ import unicode_literals
 
 import json
 
+from classification.models import CategoryOllin
+
 from django.db import models
 
 from geographic.models import TownHall
@@ -161,65 +163,6 @@ class PPImage(models.Model, PPImageMix,
         verbose_name_plural = u"Imagenes de Cuentas Publicas"
 
 
-class CategoryOllin(models.Model):
-    name = models.CharField(max_length=255)
-    public_name = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
-    color = models.CharField(max_length=30, blank=True, null=True)
-    icon = models.CharField(max_length=30, blank=True, null=True)
-    develop_community = models.BooleanField(default=False)
-    dictionary_values = models.TextField(blank=True, null=True)
-
-    class Meta:
-        verbose_name = "CategoryOllin"
-        verbose_name_plural = "CategoryOllins"
-
-    def __unicode__(self):
-        return self.name
-
-    def calculate_value(self, evaluation_text):
-        """Valor basado en la precencia independientemente de la cantidad."""
-        value = 0
-        evaluation_text = evaluation_text.lower()
-        for reference_value, data_list in self.get_dictionary_values().items():
-            data_list = list(dict.fromkeys(data_list))
-            for data in data_list:
-                data = data.lower().strip()
-                if not data:
-                    continue
-                if data in evaluation_text:
-                    value += reference_value
-        return value
-
-    def get_dictionary_values(self):
-        if hasattr(self, "_dictionary_values"):
-            return self._dictionary_values
-        if not self.dictionary_values:
-            return {}
-        dictionary_values = {}
-        data_line = ""
-        value = 0
-        for line in self.dictionary_values.split(u"\n"):
-            if ":" in line:
-                if value:
-                    dictionary_values[value] = list(dict.fromkeys([
-                        data.strip() for data in data_line.split(",")
-                        if data.strip()]))
-                try:
-                    value = int(line[:line.index(u":")])
-                except Exception:
-                    continue
-                data_line = line[line.index(u":") + 1:]
-            else:
-                data_line += line
-        if value:
-            dictionary_values[value] = list(dict.fromkeys([
-                data.strip() for data in data_line.split(",")
-                if data.strip()]))
-        self._dictionary_values = dictionary_values
-        return self._dictionary_values
-
-
 class Row(models.Model):
     final_project = models.ForeignKey(
         FinalProject, blank=True, null=True, related_name=u"rows")
@@ -297,12 +240,13 @@ class Row(models.Model):
     def calculate_category(self, category_value_min=80):
         row_category_list = []
         best_row_category = None
+        RowCategory.objects.filter(row=self).delete()
         for category in CategoryOllin.objects.all():
             evaluation_text = u"%s %s" % (self.project_name, self.description)
             category_value = category.calculate_value(evaluation_text)
             if category_value >= category_value_min:
-                row_category, is_created = RowCategory.objects\
-                    .get_or_create(row=self, category=category)
+                row_category = RowCategory.objects\
+                    .create(row=self, category=category)
                 row_category.value = category_value
                 row_category.save()
                 row_category_list.append(row_category)
@@ -351,7 +295,7 @@ class Row(models.Model):
 
 class RowCategory(models.Model):
     row = models.ForeignKey(Row)
-    category = models.ForeignKey(CategoryOllin)
+    category = models.ForeignKey(CategoryOllin, null=True)
     value = models.SmallIntegerField(default=0)
 
     class Meta:

@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 from django.contrib import admin
 
-from .models import CategoryOllin, PPImage, PublicAccount, Row, RowCategory
+from .models import PPImage, PublicAccount, Row, RowCategory
 
 
 class PPImageInline(admin.StackedInline):
@@ -104,9 +104,3 @@ class RowAdmin(admin.ModelAdmin):
     raw_id_fields = ["final_project", "image", "category"]
 
 admin.site.register(Row, RowAdmin)
-
-
-class CategoryOllinAdmin(admin.ModelAdmin):
-    list_display = ["name", "public_name", "description"]
-
-admin.site.register(CategoryOllin, CategoryOllinAdmin)

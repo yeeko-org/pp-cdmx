@@ -2,7 +2,8 @@
 from __future__ import unicode_literals
 
 from django.contrib import admin
-from .models import CategoryIECM, Anomaly
+
+from .models import CategoryIECM, Anomaly, CategoryOllin
 
 
 admin.site.register(CategoryIECM)
@@ -10,6 +11,12 @@ admin.site.register(CategoryIECM)
 
 class AnomalyAdmin(admin.ModelAdmin):
     model = Anomaly
-    list_display = ["name", "is_public"]    
+    list_display = ["name", "is_public"]
     list_filter = ["is_public"]
 admin.site.register(Anomaly, AnomalyAdmin)
+
+
+class CategoryOllinAdmin(admin.ModelAdmin):
+    list_display = ["name", "public_name", "description"]
+
+admin.site.register(CategoryOllin, CategoryOllinAdmin)
