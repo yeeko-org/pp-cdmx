@@ -202,8 +202,9 @@ class CategoryOllin(models.Model):
         for line in self.dictionary_values.split(u"\n"):
             if ":" in line:
                 if value:
-                    dictionary_values[value] = [
-                        data for data in data_line.split(",")]
+                    dictionary_values[value] = list(dict.fromkeys([
+                        data.strip() for data in data_line.split(",")
+                        if data.strip()]))
                 try:
                     value = int(line[:line.index(u":")])
                 except Exception:
@@ -212,7 +213,9 @@ class CategoryOllin(models.Model):
             else:
                 data_line += line
         if value:
-            dictionary_values[value] = [data for data in data_line.split(",")]
+            dictionary_values[value] = list(dict.fromkeys([
+                data.strip() for data in data_line.split(",")
+                if data.strip()]))
         self._dictionary_values = dictionary_values
         return self._dictionary_values
 
