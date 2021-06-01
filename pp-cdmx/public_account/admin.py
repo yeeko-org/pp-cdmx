@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 from django.contrib import admin
 
-from .models import PPImage, PublicAccount, Row
+from .models import CategoryOllin, PPImage, PublicAccount, Row, RowCategory
 
 
 class PPImageInline(admin.StackedInline):
@@ -22,7 +22,6 @@ class PublicAccountAdmin(admin.ModelAdmin):
     list_display = [
         "townhall", "period_pp", "status", "approved", "assigned", "modified",
         "executed", "vertical_align_ammounts", "unreadable"]
-    # inlines = [PPImageInline]
     list_filter = ["townhall__name", "period_pp__year"]
     list_editable = [
         "approved", "assigned", "modified", "executed",
@@ -88,3 +87,26 @@ class PPImageAdmin(admin.ModelAdmin):
                 full_url, full_url))
 
 admin.site.register(PPImage, PPImageAdmin)
+
+
+class CategoryInline(admin.TabularInline):
+    model = RowCategory
+    max_num = 0
+    extra = 0
+    readonly_fields = ["category", "value"]
+
+
+class RowAdmin(admin.ModelAdmin):
+    list_display = ["id", "project_name"]
+    inlines = [
+        CategoryInline,
+    ]
+    raw_id_fields = ["final_project", "image", "category"]
+
+admin.site.register(Row, RowAdmin)
+
+
+class CategoryOllinAdmin(admin.ModelAdmin):
+    list_display = ["name", "public_name", "description"]
+
+admin.site.register(CategoryOllin, CategoryOllinAdmin)

@@ -161,6 +161,62 @@ class PPImage(models.Model, PPImageMix,
         verbose_name_plural = u"Imagenes de Cuentas Publicas"
 
 
+class CategoryOllin(models.Model):
+    name = models.CharField(max_length=255)
+    public_name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    color = models.CharField(max_length=30, blank=True, null=True)
+    icon = models.CharField(max_length=30, blank=True, null=True)
+    develop_community = models.BooleanField(default=False)
+    dictionary_values = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "CategoryOllin"
+        verbose_name_plural = "CategoryOllins"
+
+    def __unicode__(self):
+        return self.name
+
+    def calculate_value(self, evaluation_text):
+        """Valor basado en la precencia independientemente de la cantidad."""
+        value = 0
+        evaluation_text = evaluation_text.lower()
+        for reference_value, data_list in self.get_dictionary_values().items():
+            data_list = list(dict.fromkeys(data_list))
+            for data in data_list:
+                data = data.lower().strip()
+                if not data:
+                    continue
+                if data in evaluation_text:
+                    value += reference_value
+        return value
+
+    def get_dictionary_values(self):
+        if hasattr(self, "_dictionary_values"):
+            return self._dictionary_values
+        if not self.dictionary_values:
+            return {}
+        dictionary_values = {}
+        data_line = ""
+        value = 0
+        for line in self.dictionary_values.split(u"\n"):
+            if ":" in line:
+                if value:
+                    dictionary_values[value] = [
+                        data for data in data_line.split(",")]
+                try:
+                    value = int(line[:line.index(u":")])
+                except Exception:
+                    continue
+                data_line = line[line.index(u":") + 1:]
+            else:
+                data_line += line
+        if value:
+            dictionary_values[value] = [data for data in data_line.split(",")]
+        self._dictionary_values = dictionary_values
+        return self._dictionary_values
+
+
 class Row(models.Model):
     final_project = models.ForeignKey(
         FinalProject, blank=True, null=True, related_name=u"rows")
@@ -203,6 +259,8 @@ class Row(models.Model):
     top = models.SmallIntegerField(blank=True, null=True)
     bottom = models.SmallIntegerField(blank=True, null=True)
 
+    category = models.ForeignKey(CategoryOllin, blank=True, null=True)
+
     def get_vision_data(self, *args, **kwargs):
         try:
             return json.loads(self.vision_data)
@@ -233,8 +291,32 @@ class Row(models.Model):
         except Exception:
             return []
 
-    def save(self, *args, **kwargs):
+    def calculate_category(self, category_value_min=80):
+        row_category_list = []
+        best_row_category = None
+        for category in CategoryOllin.objects.all():
+            evaluation_text = u"%s %s" % (self.project_name, self.description)
+            category_value = category.calculate_value(evaluation_text)
+            if category_value >= category_value_min:
+                row_category, is_created = RowCategory.objects\
+                    .get_or_create(row=self, category=category)
+                row_category.value = category_value
+                row_category.save()
+                row_category_list.append(row_category)
+        if len(row_category_list) == 1:
+            best_row_category = row_category_list[0]
+        elif len(row_category_list) > 1:
+            def category_value(obj):
+                return obj.value
+            row_category_list.sort(key=category_value, reverse=True)
+            if row_category_list[0].value - 100 > row_category_list[1].value:
+                best_row_category = row_category_list[0]
 
+        if best_row_category:
+            self.category = best_row_category.category
+            self.save()
+
+    def save(self, *args, **kwargs):
         if self.executed and self.approved:
             self.variation_calc = float((self.executed / self.approved) * 100)
 
@@ -262,3 +344,16 @@ class Row(models.Model):
 
     def __unicode__(self):
         return u"%s - %s" % (self.image, self.sequential)
+
+
+class RowCategory(models.Model):
+    row = models.ForeignKey(Row)
+    category = models.ForeignKey(CategoryOllin)
+    value = models.SmallIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "RowCategory"
+        verbose_name_plural = "RowCategorys"
+
+    def __unicode__(self):
+        return u"%s %s %s" % (self.row, self.category, self.value)
