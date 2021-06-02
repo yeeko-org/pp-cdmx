@@ -5,7 +5,7 @@ from public_account.models import (PublicAccount, PPImage, Row)
 
 from project.models import FinalProject
 from geographic.api.serializers import SuburbFullSerializer
-
+import json
 
 class AmountVariationSerializer(serializers.ModelSerializer):
 
@@ -152,6 +152,7 @@ class RowSerializer(serializers.ModelSerializer):
 
 class PPImageSimpleSerializer(PublicAccountList):
     #json_variables = serializers.SerializerMethodField()
+    table_ref_columns = serializers.SerializerMethodField()
 
     def get_json_variables(self, obj):
         try:
@@ -166,6 +167,12 @@ class PPImageSimpleSerializer(PublicAccountList):
         except Exception as e:
             return None
 
+    def get_table_ref_columns(self, obj):
+        try:
+            return json.loads(obj.table_ref_columns)
+        except Exception as e:
+            return []
+
     class Meta:
         model = PPImage
         fields = [
@@ -173,5 +180,6 @@ class PPImageSimpleSerializer(PublicAccountList):
             "path",
             #"json_variables",
             "manual_ref",
+            "validated",
             "table_ref_columns",
         ]

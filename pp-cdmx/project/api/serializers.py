@@ -33,7 +33,8 @@ class FinalProjectSerializer(serializers.ModelSerializer):
         from classification.api.serializers import AnomalySerializer
         from classification.models import Anomaly
         anomaly_query = Anomaly.objects.filter(
-            anomalyfinalproject__final_project=obj).distinct()
+            anomalyfinalproject__final_project=obj, is_public=True)\
+            .exclude(id=21).distinct()
         return AnomalySerializer(anomaly_query, many=True).data
 
     class Meta:
