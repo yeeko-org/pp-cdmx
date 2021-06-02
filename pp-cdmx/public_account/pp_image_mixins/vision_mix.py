@@ -22,9 +22,9 @@ class PPImageVisionMix:
         manual_ref = self.get_manual_ref()
         table_ref_columns = None
         if manual_ref:
-            table_ref_columns = [manual_ref.get("right")]
+            table_ref_columns = [manual_ref.get("left")]
             table_ref_columns += manual_ref.get("divisors")
-            table_ref_columns += [manual_ref.get("left")]
+            table_ref_columns += [manual_ref.get("right")]
         else:
             data = self.get_json_variables()
             columns_boxs = data.get("columns_boxs")
