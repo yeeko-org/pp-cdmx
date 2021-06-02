@@ -42,6 +42,14 @@ class Anomaly(models.Model):
         verbose_name_plural = u"Anomalías"
 
 
+def text_normalizer(text):
+    import re
+    import unidecode
+    text = text.lower().strip()
+    text = unidecode.unidecode(text)
+    return re.sub(ur'[^a-zA-Z\s]', '', text)
+
+
 class CategoryOllin(models.Model):
     name = models.CharField(max_length=255)
     public_name = models.CharField(max_length=255)
@@ -60,16 +68,12 @@ class CategoryOllin(models.Model):
 
     def calculate_value(self, evaluation_text):
         """Valor basado en la precencia independientemente de la cantidad."""
-        import re
-        import unidecode
-        evaluation_text = evaluation_text.lower()
-        evaluation_text = unidecode.unidecode(evaluation_text)
-        evaluation_text = re.sub(ur'[^a-zA-Z\s]', '', evaluation_text.lower())
+        evaluation_text = text_normalizer(evaluation_text)
         value = 0
         for reference_value, data_list in self.get_dictionary_values().items():
             data_list = list(dict.fromkeys(data_list))
             for data in data_list:
-                data = data.lower().strip()
+                data = text_normalizer(data)
                 if not data:
                     continue
                 if data in evaluation_text:

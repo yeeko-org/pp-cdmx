@@ -294,7 +294,7 @@ class Row(models.Model):
 
 
 class RowCategory(models.Model):
-    row = models.ForeignKey(Row)
+    row = models.ForeignKey(Row, related_name=u"atl_categories")
     category = models.ForeignKey(CategoryOllin, null=True)
     value = models.SmallIntegerField(default=0)
 

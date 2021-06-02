@@ -18,7 +18,7 @@ class ProjectAdmin(admin.ModelAdmin):
     model = Project
     list_display = [
         "suburb", "period_pp", "name_iecm", "project_id", "category_iecm",
-        "votes", "is_winer"]
+        "votes", "is_winner"]
     raw_id_fields = ["suburb", "period_pp", "category_iecm"]
     list_filter = ["suburb__townhall", "category_iecm"]
     search_fields = [

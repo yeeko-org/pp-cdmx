@@ -99,8 +99,8 @@ PP-{AAAA}-{ID_ALCALDIA}_{PÁGINA}-2.png
 		"project":{
 			"text": "IMPERMEABILIZACIÓN EN ALDANA",
 			#Utilizar algún algoritmo de python para verificar grado de coincidencia.
-			"coincidence_winer": 0.84,
-			"winer_project_id": 4784,
+			"coincidence_winner": 0.84,
+			"winner_project_id": 4784,
 		},
 		"description":{
 			"text": "IMPERMEABILIZACIÓN EN ALDANA",

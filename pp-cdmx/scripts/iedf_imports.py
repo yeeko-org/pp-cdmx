@@ -53,11 +53,11 @@ def calculate_winner(year=2018):
         final_project.save()
 
         if votes__max:
-            winer_proyects = project_suburb_year_query\
+            winner_proyects = project_suburb_year_query\
                 .filter(votes=votes__max)
-            count_winers = winer_proyects.count()
-            winer_proyects.update(is_winer=True)
-            if count_winers > 1:
+            count_winners = winner_proyects.count()
+            winner_proyects.update(is_winner=True)
+            if count_winners > 1:
                 anomaly, is_created = Anomaly.objects\
                     .get_or_create(name=u"Empate de votos")
                 anomaly_fp, is_created = AnomalyFinalProject.objects\
@@ -66,15 +66,15 @@ def calculate_winner(year=2018):
                         final_project=final_project)
         else:
             # sin proyecto ganador
-            count_winers = 0
+            count_winners = 0
 
         print "%s | %s | %s" % (
             suburb.cve_col, suburb.name, suburb.townhall.name)
         print "votes__max: %s" % votes__max
         print "votes__sum: %s" % votes__sum
         print "final_project: %s" % final_project
-        print "winer_proyects: %s" % winer_proyects
-        print "count_winers: %s" % count_winers
+        print "winner_proyects: %s" % winner_proyects
+        print "count_winners: %s" % count_winners
         print
 
 def CategoriesIECM20180():
