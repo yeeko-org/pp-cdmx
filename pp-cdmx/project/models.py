@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import json
+
+from classification.models import Anomaly, CategoryIECM
+
+from django.contrib.auth.models import User
 from django.db import models
+
 from geographic.models import Suburb
 
 from period.models import PeriodPP
-from classification.models import CategoryIECM, Anomaly
-
-from django.contrib.auth.models import User
-import json
 
 
 class Project(models.Model):
@@ -38,6 +40,7 @@ class Project(models.Model):
     class Meta:
         verbose_name = "Proyecto de Presupuesto"
         verbose_name_plural = "Proyectos de Presupuestos"
+        ordering = ["-votes"]
 
     def __unicode__(self):
         return self.name_iecm
@@ -109,17 +112,17 @@ class FinalProject(models.Model):
         max_digits=3, decimal_places=2, default=0, blank=True, null=True,
         verbose_name=u"Nivel de similitud de nombre (-1 cuando es forzado)")
     name_in_pa = models.CharField(max_length=140, blank=True, null=True,
-        verbose_name=u"Nombre como aparece en cuenta pública")
+                                  verbose_name=u"Nombre como aparece en cuenta pública")
     json_variables = models.TextField(blank=True, null=True,
-        verbose_name=u"Variables originales de su columna")
-    error_cell = models.TextField(blank=True, null=True, 
-        verbose_name=u"pila de errores")
-    inserted_data = models.BooleanField(default=False, 
-        verbose_name=u"Datos insertados desde cuenta pública")
+                                      verbose_name=u"Variables originales de su columna")
+    error_cell = models.TextField(blank=True, null=True,
+                                  verbose_name=u"pila de errores")
+    inserted_data = models.BooleanField(default=False,
+                                        verbose_name=u"Datos insertados desde cuenta pública")
 
-    data_raw = models.TextField(blank=True, null=True, 
-        verbose_name=u"Informacion de la imagen")
-    
+    data_raw = models.TextField(blank=True, null=True,
+                                verbose_name=u"Informacion de la imagen")
+
     variation_calc = models.FloatField(blank=True, null=True)
 
     range = models.CharField(max_length=50, blank=True, null=True)
@@ -131,25 +134,25 @@ class FinalProject(models.Model):
     def get_data_raw(self):
         try:
             return json.loads(self.data_raw)
-        except Exception as e:
+        except Exception:
             return None
 
     def set_data_raw(self, data):
         try:
             self.data_raw = json.dumps(data)
-        except Exception as e:
+        except Exception:
             self.data_raw = None
 
     def get_json_variables(self):
         try:
             return json.loads(self.json_variables)
-        except Exception as e:
+        except Exception:
             return None
 
     def set_json_variables(self, data):
         try:
             self.json_variables = json.dumps(data)
-        except Exception as e:
+        except Exception:
             self.json_variables = None
 
     def projects(self):
@@ -158,9 +161,9 @@ class FinalProject(models.Model):
             .distinct()
 
     def check_project_winner(self):
-        from project.models import Project, FinalProject, AnomalyFinalProject
+        from project.models import Project, AnomalyFinalProject
         from classification.models import Anomaly
-        from scripts.data_cleaner_v2 import similar
+        # from scripts.data_cleaner_v2 import similar
 
         print self
         project_query = Project.objects.filter(
@@ -203,18 +206,18 @@ class FinalProject(models.Model):
             anomaly_text = "Nombre del Proyecto IECM no coincidente"
             anomaly_is_public = False
         else:
-            self.project=winner_project
+            self.project = winner_project
         if anomaly_text:
             anomaly_obj, is_created = Anomaly.objects\
                 .get_or_create(name=anomaly_text)
             if isinstance(anomaly_is_public, bool):
-                anomaly_obj.is_public=anomaly_is_public
+                anomaly_obj.is_public = anomaly_is_public
                 anomaly_obj.save()
-            anomaly_final_project, is_created=AnomalyFinalProject.objects\
+            anomaly_final_project, is_created = AnomalyFinalProject.objects\
                 .get_or_create(
                     anomaly=anomaly_obj,
                     final_project=self,
-                    )
+                )
             print anomaly_text
         print self.project
         print
@@ -232,19 +235,20 @@ class AnomalyFinalProject(models.Model):
     final_project = models.ForeignKey(FinalProject, blank=True, null=True)
 
     def __unicode__(self):
-        return u"%s -%s" % (self.final_project or self.public_account, self.anomaly)
+        return u"%s -%s" % (self.final_project or self.public_account,
+                            self.anomaly)
 
     class Meta:
         verbose_name_plural = u"Anomalía y Proyecto Final"
         verbose_name = u"Anomalía y Proyecto Final"
 
 
-
 def check_names(winner_project, final_project, similar_value_min=0.85):
     from scripts.data_cleaner_v2 import similar
-    winner_project_name_iecm=(winner_project.name_iecm or "").lower().strip()
+    winner_project_name_iecm = (winner_project.name_iecm or "").lower().strip()
     final_project_final_name = (final_project.final_name or "").lower().strip()
-    final_project_description_cp = (final_project.description_cp or "").lower().strip()
+    final_project_description_cp = (
+        final_project.description_cp or "").lower().strip()
     similar_value1 = similar(
         winner_project_name_iecm,
         final_project_final_name)
@@ -281,5 +285,3 @@ def find_winner(project_query, final_project, similar_value_min):
         return None
     projects.sort(key=key_similar_value, reverse=True)
     return projects[0]["project"]
-
-
