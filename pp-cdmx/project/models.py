@@ -251,20 +251,21 @@ class FinalProject(models.Model):
         self.save()
         winner_proyects_list = []
 
-        # Si FinalProject.votes_int / FinalProject.total_votes >= 0.2
-        if (self.votes_int / self.total_votes) >= 0.2:
-            self.set_anomaly("Demasiados votos por internet")
-        # Cuando el Project o los Projects ganadores tienen menos de 5 votos
-        if votes__max < 5:
-            self.set_anomaly("Ganador con menos de 5 votos")
-        # Si FinalProject.total_votes == 0
         if not self.total_votes:
+            # Si FinalProject.total_votes == 0
             self.set_anomaly("Sin votos")
+        elif (self.votes_int / self.total_votes) >= 0.2:
+            # Si FinalProject.votes_int / FinalProject.total_votes >= 0.2
+            self.set_anomaly("Demasiados votos por internet")
         # "Un solo proyecto presentado": Cuando solo se encuentre un Project asociado al FinalProject
         if project_fp_year_query.count() == 1:
             self.set_anomaly("Un solo proyecto presentado")
 
         if votes__max:
+            if votes__max < 5:
+                # Cuando el Project o los Projects ganadores tienen
+                # menos de 5 votos
+                self.set_anomaly("Ganador con menos de 5 votos")
             winner_proyects = project_fp_year_query\
                 .filter(votes=votes__max)
             count_winners = winner_proyects.count()
