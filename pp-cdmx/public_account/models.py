@@ -227,9 +227,17 @@ class Row(models.Model):
         else:
             return
         errors = self.get_errors()
+        if error in errors:
+            return
         errors.append(u"%s" % error)
+        errors_unique = []
+        for error in errors:
+            if error in errors_unique:
+                continue
+            errors_unique.append(error)
         self.errors = json.dumps(errors)
-        self.save()
+        if kwargs.get("save", True):
+            self.save()
 
     def get_formatted_data(self, *args, **kwargs):
         try:
@@ -266,6 +274,11 @@ class Row(models.Model):
     def save(self, *args, **kwargs):
         if self.executed and self.approved:
             self.variation_calc = float((self.executed / self.approved) * 100)
+
+            if self.variation_calc > 0 and self.variation_calc < 90:
+                self.set_errors(u"Variación anormal", save=False)
+            elif self.variation_calc > 110:
+                self.set_errors(u"Aprobado muy alto", save=False)
 
             if self.variation_calc > 102.5:
                 self.range = u">2.5%"
