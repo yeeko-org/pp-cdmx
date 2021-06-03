@@ -300,7 +300,7 @@ class Row(models.Model):
             if self.progress > 1 or (
                     self.progress > 0 and self.progress < 0.8):
                 self.set_errors(
-                    u"Valor en columna Progreso anormal", save=False)
+                    u"Valor en columna Avance anormal", save=False)
         super(Row, self).save(*args, **kwargs)
 
     class Meta:
