@@ -1,10 +1,16 @@
 # -*- coding: utf-8 -*-
-from project.models import *
-from geographic.models import *
-from period.models import *
+from geographic.models import Suburb
+
+# from period.models import (LawPP, PeriodPP, result_percent, print_results)
+
+from project.models import (
+    FinalProject,
+    # check_names, key_similar_value, find_winner,
+)
 
 
 def calculate_stats():
+    subs_sin_pob = Suburb.objects.filter(pob_2010__isnull=True)
     errors = []
     error_codes = []
 
@@ -14,7 +20,7 @@ def calculate_stats():
         try:
             final_proy = FinalProject.objects.get(
                 suburb__cve_col=col['cve_col'])
-            proys = None
+            # proys = None
             final_proy
         except Exception as e:
             print "%s | %s" % (col["cve_col"], col["nombre_ref"])
@@ -29,65 +35,20 @@ def calculate_stats():
 
 
 def calculate_winner(year=2018):
-    from django.db.models import Max, Sum
-    from classification.models import Anomaly
+    for final_project in FinalProject.objects.filter(period_pp__year=year):
+        final_project.calculate_winner()
 
-    subs_sin_pob = Suburb.objects.filter(pob_2010__isnull=True)
-
-    # print subs_sin_pob.count()
-    # for sub in subs_sin_pob:
-    #     print "%s | %s | %s" % (sub.cve_col, sub.name, sub.townhall.name)
-
-    for suburb in Suburb.objects.all():
-        project_suburb_year_query = Project.objects\
-            .filter(suburb=suburb, period_pp__year=year)
-        votes__max = project_suburb_year_query\
-            .aggregate(Max('votes')).get("votes__max")
-        votes__sum = project_suburb_year_query\
-            .aggregate(Sum('votes')).get("votes__sum")
-
-        final_project = FinalProject.objects\
-            .filter(suburb=suburb, period_pp__year=year).first()
-
-        final_project.total_votes = votes__sum
-        final_project.save()
-
-        if votes__max:
-            winner_proyects = project_suburb_year_query\
-                .filter(votes=votes__max)
-            count_winners = winner_proyects.count()
-            winner_proyects.update(is_winner=True)
-            if count_winners > 1:
-                anomaly, is_created = Anomaly.objects\
-                    .get_or_create(name=u"Empate de votos")
-                anomaly_fp, is_created = AnomalyFinalProject.objects\
-                    .get_or_create(
-                        anomaly=anomaly,
-                        final_project=final_project)
-        else:
-            # sin proyecto ganador
-            count_winners = 0
-
-        print "%s | %s | %s" % (
-            suburb.cve_col, suburb.name, suburb.townhall.name)
-        print "votes__max: %s" % votes__max
-        print "votes__sum: %s" % votes__sum
-        print "final_project: %s" % final_project
-        print "winner_proyects: %s" % winner_proyects
-        print "count_winners: %s" % count_winners
-        print
 
 def CategoriesIECM20180():
     from classification.models import CategoryIECM
     names = [["Actividades culturales", "fa-palette"],
-    ["Actividades recreativas", "fa-kite"],
-    ["Actividades deportivas", "fa-running"],
-    ["Obras y servicios", "fa-hard-hat"],
-    ["Prevención del delito", "fa-bell"],
-    ["Infraestructura urbana", "fa-city"],
-    ["Equipamiento", "fa-tree"]]
+             ["Actividades recreativas", "fa-kite"],
+             ["Actividades deportivas", "fa-running"],
+             ["Obras y servicios", "fa-hard-hat"],
+             ["Prevención del delito", "fa-bell"],
+             ["Infraestructura urbana", "fa-city"],
+             ["Equipamiento", "fa-tree"]]
     for name in names:
         cat = CategoryIECM.objects.get(name=name[0])
         cat.icon = name[1]
         cat.save()
-

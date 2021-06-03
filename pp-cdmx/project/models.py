@@ -14,6 +14,8 @@ from period.models import PeriodPP
 
 
 class Project(models.Model):
+    """Esta clase es para algo."""
+
     suburb = models.ForeignKey(Suburb, verbose_name=u"Colonia")
     period_pp = models.ForeignKey(PeriodPP, verbose_name=u"Periodo PP")
     # name_iecm = models.CharField(
@@ -111,14 +113,16 @@ class FinalProject(models.Model):
     similar_suburb_name = models.DecimalField(
         max_digits=3, decimal_places=2, default=0, blank=True, null=True,
         verbose_name=u"Nivel de similitud de nombre (-1 cuando es forzado)")
-    name_in_pa = models.CharField(max_length=140, blank=True, null=True,
-                                  verbose_name=u"Nombre como aparece en cuenta pública")
-    json_variables = models.TextField(blank=True, null=True,
-                                      verbose_name=u"Variables originales de su columna")
+    name_in_pa = models.CharField(
+        max_length=140, blank=True, null=True,
+        verbose_name=u"Nombre como aparece en cuenta pública")
+    json_variables = models.TextField(
+        blank=True, null=True,
+        verbose_name=u"Variables originales de su columna")
     error_cell = models.TextField(blank=True, null=True,
                                   verbose_name=u"pila de errores")
-    inserted_data = models.BooleanField(default=False,
-                                        verbose_name=u"Datos insertados desde cuenta pública")
+    inserted_data = models.BooleanField(
+        default=False, verbose_name=u"Datos insertados desde cuenta pública")
 
     data_raw = models.TextField(blank=True, null=True,
                                 verbose_name=u"Informacion de la imagen")
@@ -126,6 +130,8 @@ class FinalProject(models.Model):
     variation_calc = models.FloatField(blank=True, null=True)
 
     range = models.CharField(max_length=50, blank=True, null=True)
+
+    votes_int = models.SmallIntegerField(blank=True, null=True)
 
     # pre_clasification
     # manuela_
@@ -160,10 +166,18 @@ class FinalProject(models.Model):
             .filter(suburb=self.suburb, period_pp=self.period_pp)\
             .distinct()
 
+    def get_first_row(self):
+        # colocar algo mas complejo como ordenarlos por el valor de la relacion
+        from public_account.models import Row
+        return Row.objects.filter(final_project=self).first()
+
     def check_project_winner(self):
-        from project.models import Project, AnomalyFinalProject
-        from classification.models import Anomaly
         # from scripts.data_cleaner_v2 import similar
+        self.remove_anomaly([
+            u"Ganador y ejecutado distintos",
+            u"Sin ganador y ejecutado",
+            u"Nombre del Proyecto IECM no coincidente"
+        ])
 
         print self
         project_query = Project.objects.filter(
@@ -208,19 +222,94 @@ class FinalProject(models.Model):
         else:
             self.project = winner_project
         if anomaly_text:
-            anomaly_obj, is_created = Anomaly.objects\
-                .get_or_create(name=anomaly_text)
-            if isinstance(anomaly_is_public, bool):
-                anomaly_obj.is_public = anomaly_is_public
-                anomaly_obj.save()
-            anomaly_final_project, is_created = AnomalyFinalProject.objects\
-                .get_or_create(
-                    anomaly=anomaly_obj,
-                    final_project=self,
-                )
+            self.set_anomaly(anomaly_text, anomaly_is_public=anomaly_is_public)
             print anomaly_text
         print self.project
         print
+
+    def calculate_winner(self):
+        from django.db.models import Max, Sum
+        project_fp_year_query = Project.objects\
+            .filter(suburb=self.suburb,
+                    period_pp=self.period_pp)
+
+        # Cuando no se encuentre ningún Project asociado al FinalProject
+        if not project_fp_year_query.exists():
+            self.set_anomaly("Sin proyectos presentados")
+            print self.id, u": ", self
+            return
+
+        votes__max = project_fp_year_query\
+            .aggregate(Max('votes')).get("votes__max")
+        votes__sum = project_fp_year_query\
+            .aggregate(Sum('votes')).get("votes__sum")
+        votes_int__sum = project_fp_year_query\
+            .aggregate(Sum('votes_int')).get("votes_int__sum")
+
+        self.total_votes = votes__sum
+        self.votes_int = votes_int__sum
+        self.save()
+        winner_proyects_list = []
+
+        # Si FinalProject.votes_int / FinalProject.total_votes >= 0.2
+        if (self.votes_int / self.total_votes) >= 0.2:
+            self.set_anomaly("Demasiados votos por internet")
+        # Cuando el Project o los Projects ganadores tienen menos de 5 votos
+        if votes__max < 5:
+            self.set_anomaly("Ganador con menos de 5 votos")
+        # Si FinalProject.total_votes == 0
+        if not self.total_votes:
+            self.set_anomaly("Sin votos")
+        # "Un solo proyecto presentado": Cuando solo se encuentre un Project asociado al FinalProject
+        if project_fp_year_query.count() == 1:
+            self.set_anomaly("Un solo proyecto presentado")
+
+        if votes__max:
+            winner_proyects = project_fp_year_query\
+                .filter(votes=votes__max)
+            count_winners = winner_proyects.count()
+
+            if not count_winners:
+                self.set_anomaly("No hay proyecto ganador")
+            else:
+                winner_proyects.update(is_winner=True)
+                winner_proyects_list = winner_proyects.values_list(
+                    "suburb__short_name", flat=True)
+
+            if count_winners > 1:
+                self.set_anomaly(u"Empate de votos")
+        else:
+            # sin proyecto ganador
+            count_winners = 0
+
+        print "%s | %s | %s" % (
+            self.suburb.cve_col,
+            self.suburb.name,
+            self.suburb.townhall.name)
+        print "votes__max: %s" % votes__max
+        print "votes__sum: %s" % votes__sum
+        print "final_project: %s" % self
+        print "winner_proyects: %s" % winner_proyects_list
+        print "count_winners: %s" % count_winners
+        print
+
+    def set_anomaly(self, name, is_public=True):
+        anomaly, is_created = Anomaly.objects\
+            .get_or_create(name=name)
+        if is_public is False:
+            anomaly.is_public = False
+            anomaly.save()
+        anomaly_fp, is_created = AnomalyFinalProject.objects\
+            .get_or_create(anomaly=anomaly, final_project=self)
+
+    def remove_anomaly(self, anomaly_name):
+        if isinstance(anomaly_name, list):
+            AnomalyFinalProject.objects\
+                .filter(anomaly__name__in=anomaly_name, final_project=self)\
+                .delete()
+
+        AnomalyFinalProject.objects\
+            .filter(anomaly__name=anomaly_name, final_project=self).delete()
 
     class Meta:
         verbose_name = "Proyecto Final en la Cuenta Publica"
@@ -245,16 +334,18 @@ class AnomalyFinalProject(models.Model):
 
 def check_names(winner_project, final_project, similar_value_min=0.85):
     from scripts.data_cleaner_v2 import similar
+    row = final_project.get_first_row()
+    if not row:
+        return 0
     winner_project_name_iecm = (winner_project.name_iecm or "").lower().strip()
-    final_project_final_name = (final_project.final_name or "").lower().strip()
-    final_project_description_cp = (
-        final_project.description_cp or "").lower().strip()
+    row_project_name = (row.project_name or "").lower().strip()
+    row_description = (row.description or "").lower().strip()
     similar_value1 = similar(
         winner_project_name_iecm,
-        final_project_final_name)
+        row_project_name)
     similar_value2 = similar(
         winner_project_name_iecm,
-        final_project_description_cp)
+        row_description)
     if similar_value1 > similar_value2:
         max_value = similar_value1
     else:
