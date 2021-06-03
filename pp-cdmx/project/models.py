@@ -222,7 +222,7 @@ class FinalProject(models.Model):
         else:
             self.project = winner_project
         if anomaly_text:
-            self.set_anomaly(anomaly_text, anomaly_is_public=anomaly_is_public)
+            self.set_anomaly(anomaly_text, is_public=anomaly_is_public)
             print anomaly_text
         print self.project
         print
