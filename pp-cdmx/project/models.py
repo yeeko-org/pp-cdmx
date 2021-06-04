@@ -182,7 +182,7 @@ class FinalProject(models.Model):
         print self
         project_query_all = Project.objects.filter(
             period_pp=self.period_pp,
-            suburb__townhall__id=self.suburb.townhall_id)
+            suburb__id=self.suburb_id)
         project_query_winners = project_query_all.filter(is_winner=True)
 
         project_count = project_query_winners.count()
