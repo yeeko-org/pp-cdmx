@@ -227,9 +227,17 @@ class Row(models.Model):
         else:
             return
         errors = self.get_errors()
+        if error in errors:
+            return
         errors.append(u"%s" % error)
+        errors_unique = []
+        for error in errors:
+            if error in errors_unique:
+                continue
+            errors_unique.append(error)
         self.errors = json.dumps(errors)
-        self.save()
+        if kwargs.get("save", True):
+            super(Row, self).save()
 
     def get_formatted_data(self, *args, **kwargs):
         try:
@@ -267,6 +275,11 @@ class Row(models.Model):
         if self.executed and self.approved:
             self.variation_calc = float((self.executed / self.approved) * 100)
 
+            if self.variation_calc > 0 and self.variation_calc < 90:
+                self.set_errors(u"Posible inconsistencia de montos", save=False)
+            elif self.variation_calc > 110:
+                self.set_errors(u"Aprobado muy alto", save=False)
+
             if self.variation_calc > 102.5:
                 self.range = u">2.5%"
 
@@ -283,6 +296,11 @@ class Row(models.Model):
                 self.range = u"not_executed"
                 self.variation_calc = 0
 
+        if self.progress:
+            if self.progress > 1 or (
+                    self.progress > 0 and self.progress < 0.8):
+                self.set_errors(
+                    u"Valor en columna Avance anormal", save=False)
         super(Row, self).save(*args, **kwargs)
 
     class Meta:
