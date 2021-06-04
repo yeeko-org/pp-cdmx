@@ -3,7 +3,9 @@ from __future__ import unicode_literals
 
 from django.contrib import admin
 
-from .models import Project, FinalProject, AnomalyFinalProject
+from public_account.admin import RowInline
+
+from .models import AnomalyFinalProject, FinalProject, Project
 
 
 class AnomalyFinalProjectInline(admin.TabularInline):
@@ -11,7 +13,7 @@ class AnomalyFinalProjectInline(admin.TabularInline):
     show_change_link = True
     extra = 0
     raw_id_fields = ["anomaly"]
-    #classes = ['collapse']
+    # classes = ['collapse']
 
 
 class ProjectAdmin(admin.ModelAdmin):
@@ -79,7 +81,7 @@ class FinalProjectAdmin(admin.ModelAdmin):
             ]
         }]
     ]
-    inlines = [AnomalyFinalProjectInline]
+    inlines = [AnomalyFinalProjectInline, RowInline]
     raw_id_fields = [
         "suburb", "period_pp", "project", "user_validation"
     ]

@@ -14,7 +14,7 @@ class PPImageInline(admin.StackedInline):
 class RowInline(admin.StackedInline):
     model = Row
     extra = 0
-    readonly_fields = ["final_project", "image"]
+    readonly_fields = ["final_project", "image", "category"]
 
 
 class PublicAccountAdmin(admin.ModelAdmin):
