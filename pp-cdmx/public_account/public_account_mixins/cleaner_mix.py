@@ -82,7 +82,8 @@ class PublicAccountCleanerMix:
                         final_value = get_normal_name(col)
                         valid_row = final_value
                     row_data.append(final_value)
-                    if final_value and idx:
+                    if (final_value not in [None, ""] and
+                            idx and final_value is not False):
                         setattr(row, column_types[idx]["field"], final_value)
                 #print vision_data[0]
                 #print row_data
@@ -154,31 +155,36 @@ column_types = [
         "name": "progress",
         "title": u"Avance",
         "field": "progress",
-        "type": "number"
+        "type": "number",
+        "idx": 3
     },
     {
         "name": "approved",
         "title": u"Aprobado",
         "field": "approved",
-        "type": "ammount"
+        "type": "ammount",
+        "idx": 4
     },
     {
         "name": "modified",
         "title": u"Modificado",
         "field": "modified",
-        "type": "ammount"
+        "type": "ammount",
+        "idx": 5
     },
     {
         "name": "executed",
         "title": u"Ejecutado",
         "field": "executed",
-        "type": "ammount"
+        "type": "ammount",
+        "idx": 6
     },
     {
         "name": "variation",
         "title": u"Variación",
         "field": "variation",
-        "type": "number"
+        "type": "number",
+        "idx": 7
     },
 ]
 
