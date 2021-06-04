@@ -180,51 +180,47 @@ class FinalProject(models.Model):
         ])
 
         print self
-        project_query = Project.objects.filter(
-            period_pp=self.period_pp, is_winner=True)
-        project_count = project_query.count()
+        project_query_all = Project.objects.filter(
+            period_pp=self.period_pp,
+            suburb__townhall__id=self.suburb.townhall_id)
+        project_query_winners = project_query_all.filter(is_winner=True)
+
+        project_count = project_query_winners.count()
         winner_project = None
         anomaly_text = None
         anomaly_is_public = None
+
         if project_count == 1:
             # un solo ganador
-            winner_project = project_query.first()
-            if not check_names(winner_project, self,
-                               similar_value_min=0.85):
+            winner_project = project_query_winners.first()
+            if not check_names(winner_project, self, similar_value_min=0.85):
                 # el ganador no es el mismo que el registrado, buscar posible
                 # ganador
-                winner_project = find_winner(
-                    Project.objects.filter(
-                        period_pp=self.period_pp),
-                    self, 0.7)
+                winner_project = find_winner(project_query_all, self, 0.7)
                 anomaly_text = "Ganador y ejecutado distintos"
         elif project_count:
             # multiples ganadores
-            winner_project = find_winner(
-                Project.objects.filter(
-                    period_pp=self.period_pp, is_winner=True),
-                self, 0.7)
+            winner_project = find_winner(project_query_winners, self, 0.7)
             if not winner_project:
                 winner_project = find_winner(
-                    Project.objects.filter(
-                        period_pp=self.period_pp),
+                    project_query_all,
                     self, 0.7)
                 anomaly_text = "Ganador y ejecutado distintos"
         else:
-            winner_project = find_winner(
-                Project.objects.filter(
-                    period_pp=self.period_pp),
-                self, 0.7)
+            winner_project = find_winner(project_query_all, self, 0.7)
             anomaly_text = "Sin ganador y ejecutado"
+
         if not winner_project:
             anomaly_text = "Nombre del Proyecto IECM no coincidente"
             anomaly_is_public = False
         else:
             self.project = winner_project
+
         if anomaly_text:
             self.set_anomaly(anomaly_text, is_public=anomaly_is_public)
             print anomaly_text
-        print self.project
+
+        # print self.project
         print
 
     def calculate_winner(self):
