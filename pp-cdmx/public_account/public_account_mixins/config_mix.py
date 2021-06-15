@@ -55,6 +55,9 @@ class PublicAccountMix:
             period_pp=self.period_pp,
             suburb__townhall=self.townhall)
 
+        #valid_fps = final_project_query.filter(
+        #    approved__isnull=False, approved__gt=0)
+
         avgs = final_project_query.aggregate(Avg('approved'), Avg('executed'))
         self.approved_mean = avgs.get("approved__avg")
         self.executed_mean = avgs.get("executed__avg")

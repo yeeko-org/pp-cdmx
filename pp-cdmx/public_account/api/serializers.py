@@ -30,6 +30,8 @@ class AmountVariationSerializer(serializers.ModelSerializer):
             "plus_5",
 
             "not_executed",
+            "not_reported",
+            "not_approved",
             "no_info",
         ]
         # depth = 2
