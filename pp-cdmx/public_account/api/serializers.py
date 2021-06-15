@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
-from rest_framework import serializers
+import json
 
-from public_account.models import (PublicAccount, PPImage, Row)
+from geographic.api.serializers import SuburbFullSerializer
 
 from project.models import FinalProject
-from geographic.api.serializers import SuburbFullSerializer
-import json
+
+from public_account.models import (PPImage, PublicAccount, Row)
+
+from rest_framework import serializers
+
 
 class AmountVariationSerializer(serializers.ModelSerializer):
 
@@ -48,9 +51,6 @@ class AmountVariationSuburbsSerializer(serializers.ModelSerializer):
         # depth = 2
 
 
-from geographic.api.serializers import TownHallSerializer, PeriodPPSerializer
-
-
 class PPImageSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -76,7 +76,7 @@ class PPImageUpdateSerializer(serializers.ModelSerializer):
 
 
 class PublicAccountList(serializers.ModelSerializer):
-    #townhall = TownHallSerializer()
+    # townhall = TownHallSerializer()
     townhall = serializers.ReadOnlyField(source="townhall.name")
     period_pp = serializers.ReadOnlyField(source="period_pp.year")
     # period_pp = PeriodPPSerializer()
@@ -91,7 +91,7 @@ class PublicAccountList(serializers.ModelSerializer):
             "status",
             "match_review",
             "suburb_count",
-            #"orphan_rows_count",
+            # "orphan_rows_count",
             "pp_images"
         ]
 
@@ -128,8 +128,6 @@ class RowSerializer(serializers.ModelSerializer):
             "variation",
             "validated",
             "similar_suburb_name",
-            "variation_calc",
-            "range",
             "errors",
             "sequential",
             "vision_data",
@@ -139,8 +137,6 @@ class RowSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "similar_suburb_name",
-            "variation_calc",
-            "range",
             "errors",
             "sequential",
             "vision_data",
@@ -151,26 +147,26 @@ class RowSerializer(serializers.ModelSerializer):
 
 
 class PPImageSimpleSerializer(PublicAccountList):
-    #json_variables = serializers.SerializerMethodField()
+    # json_variables = serializers.SerializerMethodField()
     table_ref_columns = serializers.SerializerMethodField()
 
     def get_json_variables(self, obj):
         try:
             return obj.get_json_variables()
-        except Exception as e:
+        except Exception:
             return None
     manual_ref = serializers.SerializerMethodField()
 
     def get_manual_ref(self, obj):
         try:
             return obj.get_manual_ref()
-        except Exception as e:
+        except Exception:
             return None
 
     def get_table_ref_columns(self, obj):
         try:
             return json.loads(obj.table_ref_columns)
-        except Exception as e:
+        except Exception:
             return []
 
     class Meta:
@@ -178,7 +174,6 @@ class PPImageSimpleSerializer(PublicAccountList):
         fields = [
             "id",
             "path",
-            #"json_variables",
             "manual_ref",
             "validated",
             "table_ref_columns",

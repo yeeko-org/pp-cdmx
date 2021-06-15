@@ -308,6 +308,61 @@ class FinalProject(models.Model):
         AnomalyFinalProject.objects\
             .filter(anomaly__name=anomaly_name, final_project=self).delete()
 
+    def calculate_ammounts(self, **kwargs):
+        from public_account.models import Row
+        from django.db.models import Sum
+
+        self.variation_calc = None
+        self.approved = None
+        self.modified = None
+        self.executed = None
+        self.progress = None
+
+        if self.rows.exists():
+            ammounts_sums = Row.objects.filter(final_project__id=self.id)\
+                .aggregate(Sum("approved"),
+                           Sum("modified"),
+                           Sum("executed"),
+                           Sum("progress"))
+            self.approved = ammounts_sums.get("approved__sum")
+            self.modified = ammounts_sums.get("modified__sum")
+            self.executed = ammounts_sums.get("executed__sum")
+            self.progress = ammounts_sums.get("progress__sum")
+
+            if not self.approved:
+                self.range = u"not_approved"
+                self.variation_calc = None
+
+            elif not self.executed:
+                self.range = u"not_executed"
+                self.variation_calc = 0
+
+            else:
+                self.variation_calc = float(
+                    (self.executed / self.approved) * 100)
+
+                if self.variation_calc > 102.5:
+                    self.range = u">2.5%"
+
+                elif self.variation_calc > 97.5:
+                    self.range = u"similar"
+
+                elif self.variation_calc > 90:
+                    self.range = u"<-2.5%"
+
+                elif self.variation_calc > 0:
+                    self.range = u"<-10%"
+
+                else:
+                    self.range = u"not_executed"
+                    self.variation_calc = 0
+
+        else:
+            self.range = u"not_reported"
+
+        if kwargs.get("save", True):
+            self.save()
+
     class Meta:
         verbose_name = "Proyecto Final en la Cuenta Publica"
         verbose_name_plural = "Proyectos Finales en la Cuenta Publica"

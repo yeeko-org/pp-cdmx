@@ -94,7 +94,11 @@ class PublicAccount(models.Model, PublicAccountCleanerMix,
     approved_mean = models.FloatField(blank=True, null=True)
     executed_mean = models.FloatField(blank=True, null=True)
 
+    # nuevos contadores
     not_executed = models.IntegerField(blank=True, null=True)
+    not_reported = models.IntegerField(blank=True, null=True)
+    not_approved = models.IntegerField(blank=True, null=True)
+
     minus_10 = models.IntegerField(blank=True, null=True)
     minus_5 = models.IntegerField(blank=True, null=True)
     similar = models.IntegerField(blank=True, null=True)
@@ -155,6 +159,11 @@ class PPImage(models.Model, PPImageMix,
         blank=True, null=True)
     comments = models.TextField(blank=True, null=True)
 
+    def save(self, *args, **kwargs):
+        super(PPImage, self).save(*args, **kwargs)
+        if self.public_account:
+            self.public_account.calculate_means()
+
     def __unicode__(self):
         return u"%s %s %s" % (self.public_account, self.path, self.id or None)
 
@@ -194,8 +203,8 @@ class Row(models.Model):
         verbose_name=u"Validado",
         blank=True, null=True)
 
-    variation_calc = models.FloatField(blank=True, null=True)
-    range = models.CharField(max_length=50, blank=True, null=True)
+    # variation_calc = models.FloatField(blank=True, null=True)
+    # range = models.CharField(max_length=50, blank=True, null=True)
 
     errors = models.TextField(blank=True, null=True)
     sequential = models.SmallIntegerField(blank=True, null=True)
@@ -272,36 +281,25 @@ class Row(models.Model):
             self.save()
 
     def save(self, *args, **kwargs):
+        is_created = True if self.pk is None else False
         if self.executed and self.approved:
-            self.variation_calc = float((self.executed / self.approved) * 100)
+            variation_calc = float((self.executed / self.approved) * 100)
 
-            if self.variation_calc > 0 and self.variation_calc < 90:
-                self.set_errors(u"Posible inconsistencia de montos", save=False)
-            elif self.variation_calc > 110:
+            if variation_calc > 0 and variation_calc < 90:
+                self.set_errors(u"Posible inconsistencia de montos",
+                                save=False)
+            elif variation_calc > 110:
                 self.set_errors(u"Aprobado muy alto", save=False)
 
-            if self.variation_calc > 102.5:
-                self.range = u">2.5%"
-
-            elif self.variation_calc > 97.5:
-                self.range = u"similar"
-
-            elif self.variation_calc > 90:
-                self.range = u"<-2.5%"
-
-            elif self.variation_calc > 0:
-                self.range = u"<-10%"
-
-            else:
-                self.range = u"not_executed"
-                self.variation_calc = 0
-
-        if self.progress:
-            if self.progress > 1 or (
-                    self.progress > 0 and self.progress < 0.8):
-                self.set_errors(
-                    u"Valor en columna Avance anormal", save=False)
         super(Row, self).save(*args, **kwargs)
+
+        if self.final_project:
+            self.final_project.calculate_ammounts()
+        if is_created:
+            old_final_project = FinalProject.objects\
+                .filter(rows__id=self.id).first()
+            if old_final_project and old_final_project != self.final_project:
+                old_final_project.calculate_ammounts()
 
     class Meta:
         verbose_name = "Row"

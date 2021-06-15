@@ -47,72 +47,47 @@ class PublicAccountMix:
             self.orphan_rows = None
 
     # utilidades
-    def calculate_means(self):
+    def calculate_means(self, **kwargs):
         from project.models import FinalProject
-        from django.db.models import Avg
-        query_final_p = FinalProject.objects.filter(
-            # inserted_data=True,
+        from django.db.models import Avg, Count
+
+        final_project_query = FinalProject.objects.filter(
             period_pp=self.period_pp,
             suburb__townhall=self.townhall)
-        avgs = query_final_p.aggregate(Avg('approved'), Avg('executed'))
+
+        avgs = final_project_query.aggregate(Avg('approved'), Avg('executed'))
         self.approved_mean = avgs.get("approved__avg")
         self.executed_mean = avgs.get("executed__avg")
 
-        query_final_p_2 = query_final_p.filter(
-            approved__isnull=False,
-            executed__isnull=False)
+        counts_query = final_project_query.values("range")\
+            .annotate(Count("range"))
+        counts = {
+            range_data.get("range"): range_data.get("range__count")
+            for range_data in counts_query
+        }
 
-        self.not_executed = query_final_p.filter(executed=0).count()
-        # self.no_info = not query_final_p.filter(
-        #     image__public_account=self).exists()
-        self.minus_10 = 0
-        self.minus_5 = 0
-        self.similar = 0
-        self.plus_5 = 0
+        self.not_reported = counts.get(u"not_reported", None)
+        self.not_approved = counts.get(u"not_approved", None)
+        self.not_executed = counts.get(u"not_executed", None)
+        self.minus_10 = counts.get(u"<-10%", None)
+        self.minus_5 = counts.get(u"<-2.5%", None)
+        self.similar = counts.get(u"similar", None)
+        self.plus_5 = counts.get(u">2.5%", None)
 
-        for fp in query_final_p_2:
-            if not fp.approved:
-                continue
-            division_percentage = float((fp.executed / fp.approved) * 100)
-            if not fp.executed:
-                fp.range = u"not_executed"
-                division_percentage = 0
-
-            elif division_percentage > 102.5:
-                self.plus_5 += 1
-                fp.range = u">2.5%"
-
-            elif division_percentage > 97.5:
-                self.similar += 1
-                fp.range = u"similar"
-
-            elif division_percentage > 90:
-                fp.range = u"<-2.5%"
-                self.minus_5 += 1
-
-            elif division_percentage > 0:
-                self.minus_10 += 1
-                fp.range = u"<-10%"
-            else:
-                fp.range = u"not_executed"
-                division_percentage = 0
-
-            fp.variation_calc = division_percentage
-            fp.save()
-        self.save()
-        return
+        if kwargs.get("save", True):
+            self.save()
 
     def reset(self, all_images=None):
         from project.models import FinalProject, AnomalyFinalProject
         from public_account.models import PPImage
 
-        query_final_p = FinalProject.objects\
+        final_project_query = FinalProject.objects\
             .filter(suburb__townhall=self.townhall,
                     period_pp=self.period_pp)
         # if all_images:
-        #     query_final_p.filter(image__in=all_images)
+        #     final_project_query.filter(image__in=all_images)
 
-        query_final_p.update(
+        final_project_query.update(
             image=None, similar_suburb_name=None, error_cell="",
             inserted_data=False, approved=None, modified=None,
             executed=None, progress=None, variation=None)
@@ -120,7 +95,7 @@ class PublicAccountMix:
         # Se eliminan las anomalías pasadas.
         # claves, columna
         AnomalyFinalProject.objects\
-            .filter(final_project__in=query_final_p, anomaly__is_public=False)\
+            .filter(final_project__in=final_project_query, anomaly__is_public=False)\
             .exclude(anomaly__name__icontains="IECM")\
             .delete()
         # AnomalyFinalProject.objects.filter(public_account=self).delete()
