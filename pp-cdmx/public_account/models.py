@@ -93,6 +93,7 @@ class PublicAccount(models.Model, PublicAccountCleanerMix,
 
     approved_mean = models.FloatField(blank=True, null=True)
     executed_mean = models.FloatField(blank=True, null=True)
+    approved_median = models.FloatField(blank=True, null=True)
 
     # nuevos contadores
     not_executed = models.IntegerField(blank=True, null=True)

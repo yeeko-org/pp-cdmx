@@ -47,19 +47,31 @@ class PublicAccountMix:
             self.orphan_rows = None
 
     # utilidades
-    def calculate_means(self, **kwargs):
+    @property
+    def final_project_query(self):
         from project.models import FinalProject
+        if not hasattr(self, "_final_project_query"):
+            self._final_project_query = FinalProject.objects.filter(
+                suburb__townhall=self.townhall, period_pp=self.period_pp)
+        return self._final_project_query
+
+    def calculate_median(self, **kwargs):
+        from numpy import median
+        approved_list = self.final_project_query.filter(approved__gt=0)\
+            .values_list("approved", flat=True)
+        self.approved_median = median(approved_list)
+        if kwargs.get("save", True):
+            self.save()
+
+    def calculate_means(self, **kwargs):
         from django.db.models import Avg, Count
 
-        final_project_query = FinalProject.objects.filter(
-            period_pp=self.period_pp,
-            suburb__townhall=self.townhall)
-
-        avgs = final_project_query.aggregate(Avg('approved'), Avg('executed'))
+        avgs = self.final_project_query.aggregate(
+            Avg('approved'), Avg('executed'))
         self.approved_mean = avgs.get("approved__avg")
         self.executed_mean = avgs.get("executed__avg")
 
-        counts_query = final_project_query.values("range")\
+        counts_query = self.final_project_query.values("range")\
             .annotate(Count("range"))
         counts = {
             range_data.get("range"): range_data.get("range__count")
@@ -74,20 +86,19 @@ class PublicAccountMix:
         self.similar = counts.get(u"similar", None)
         self.plus_5 = counts.get(u">2.5%", None)
 
+        self.calculate_median(save=False)
+
         if kwargs.get("save", True):
             self.save()
 
     def reset(self, all_images=None):
-        from project.models import FinalProject, AnomalyFinalProject
+        from project.models import AnomalyFinalProject
         from public_account.models import PPImage
 
-        final_project_query = FinalProject.objects\
-            .filter(suburb__townhall=self.townhall,
-                    period_pp=self.period_pp)
         # if all_images:
         #     final_project_query.filter(image__in=all_images)
 
-        final_project_query.update(
+        self.final_project_query.update(
             image=None, similar_suburb_name=None, error_cell="",
             inserted_data=False, approved=None, modified=None,
             executed=None, progress=None, variation=None)
@@ -95,7 +106,9 @@ class PublicAccountMix:
         # Se eliminan las anomalías pasadas.
         # claves, columna
         AnomalyFinalProject.objects\
-            .filter(final_project__in=final_project_query, anomaly__is_public=False)\
+            .filter(
+                final_project__in=self.final_project_query,
+                anomaly__is_public=False)\
             .exclude(anomaly__name__icontains="IECM")\
             .delete()
         # AnomalyFinalProject.objects.filter(public_account=self).delete()
