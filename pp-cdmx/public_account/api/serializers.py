@@ -22,6 +22,7 @@ class AmountVariationSerializer(serializers.ModelSerializer):
             "period_pp",
 
             "approved_mean",
+            "approved_median",
             "executed_mean",
 
             "minus_10",

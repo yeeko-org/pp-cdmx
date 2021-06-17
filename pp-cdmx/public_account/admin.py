@@ -60,6 +60,7 @@ class PPImageAdmin(admin.ModelAdmin):
         ["config", {
             "classes": ["collapse"],
             "fields": [
+                "path",
                 "json_variables",
                 "path",
                 "headers",
