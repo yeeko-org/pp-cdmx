@@ -161,6 +161,11 @@ class PPImage(models.Model, PPImageMix,
     comments = models.TextField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
+        if self.path and not self.vision_data:
+            from os import path
+            if path.exists(self.path):
+                if path.isfile(self.path):
+                    self.calculate_vision_data(self.path, save=False)
         super(PPImage, self).save(*args, **kwargs)
         if self.public_account:
             self.public_account.calculate_means()

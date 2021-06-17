@@ -7,6 +7,18 @@ import json
 class PPImageVisionMix:
 
     # Vision
+    def calculate_vision_data(self, file_path, **kwargs):
+        from vision.get_columns import get_data_order
+        # vision_data = get_data_order(path)
+        vision_data = get_data_order(file_path)
+        if not vision_data:
+            return
+        self.vision_data = json.dumps({"full": vision_data})
+        if not self.path:
+            self.path = file_path
+        if kwargs.get("save", True):
+            self.save()
+
     def get_vision_data(self):
         if hasattr(self, "_vision_data"):
             return self._vision_data
@@ -49,11 +61,17 @@ class PPImageVisionMix:
         return valid_header
 
     def get_data_full_image(self):
-        self.find_reference_blocks()
-        self.calculate_columns_bot()
-        self.calculate_column_boxs()
-        self.get_data_from_columns()
-        # self.cleand_columns_numbers()
+        try:
+            manual_ref = json.loads(self.manual_ref)
+        except Exception:
+            manual_ref = None
+        if manual_ref:
+            self.get_data_from_columns_mr()
+        else:
+            self.find_reference_blocks()
+            self.calculate_columns_bot()
+            self.calculate_column_boxs()
+            self.get_data_from_columns()
 
     def find_max_left(self, top=0, bot=1750):
         vision_data = self.get_vision_data().get("full", {})
