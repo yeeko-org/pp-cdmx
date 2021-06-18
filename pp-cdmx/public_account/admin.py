@@ -38,9 +38,7 @@ class PPImageAdmin(admin.ModelAdmin):
     list_filter = [
         "public_account__townhall",
         "public_account__period_pp__year"]
-    search_fields = [
-        "path", "public_account__townhall__name",
-        "finalproject__suburb__name"]
+    search_fields = ["path", "public_account__townhall__name"]
     raw_id_fields = ["public_account"]
     readonly_fields = ["get_image_url"]
     fieldsets = [
@@ -62,7 +60,6 @@ class PPImageAdmin(admin.ModelAdmin):
             "fields": [
                 "path",
                 "json_variables",
-                "path",
                 "headers",
                 "first_headers_used",
                 "vision_data",
