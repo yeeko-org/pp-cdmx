@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from api.mixins import MultiSerializerListRetrieveMix
+from api.mixins import (
+    MultiSerializerListRetrieveMix, MultiSerializerListRetrieveUpdateMix)
 from api.mixins import MultiSerializerListRetrieveUpdateMix as ListRetrieveUpdateMix
 from api.pagination import (
     StandardResultsSetPagination,
@@ -118,7 +119,7 @@ class AmountVariationTownhallView(views.APIView):
             final_projects, many=True).data)
 
 
-class PublicAccountSetView(MultiSerializerListRetrieveMix):
+class PublicAccountSetView(MultiSerializerListRetrieveUpdateMix):
     permission_classes = [permissions.AllowAny]
     serializer_class = serializers.PublicAccountList
     queryset = PublicAccount.objects.all()\
