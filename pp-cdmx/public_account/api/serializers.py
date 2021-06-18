@@ -54,6 +54,17 @@ class AmountVariationSuburbsSerializer(serializers.ModelSerializer):
         # depth = 2
 
 
+class PublicAccountUpdateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = PublicAccount
+        fields = [
+            "id",
+            "status",
+        ]
+
+
+
 class PPImageSerializer(serializers.ModelSerializer):
 
     class Meta:

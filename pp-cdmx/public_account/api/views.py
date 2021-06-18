@@ -123,6 +123,9 @@ class PublicAccountSetView(MultiSerializerListRetrieveMix):
     serializer_class = serializers.PublicAccountList
     queryset = PublicAccount.objects.all()\
         .prefetch_related("townhall", "period_pp")
+    action_serializers = {
+        "update": serializers.PublicAccountUpdateSerializer
+    }
 
     def get_queryset(self):
         from django.db.models import Q
