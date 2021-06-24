@@ -64,7 +64,6 @@ class PublicAccountUpdateSerializer(serializers.ModelSerializer):
         ]
 
 
-
 class PPImageSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -94,7 +93,6 @@ class PublicAccountList(serializers.ModelSerializer):
     townhall = serializers.ReadOnlyField(source="townhall.name")
     period_pp = serializers.ReadOnlyField(source="period_pp.year")
     # period_pp = PeriodPPSerializer()
-    pp_images = PPImageSerializer(many=True)
 
     class Meta:
         model = PublicAccount
@@ -106,21 +104,15 @@ class PublicAccountList(serializers.ModelSerializer):
             "match_review",
             "suburb_count",
             # "orphan_rows_count",
-            "pp_images"
         ]
 
 
-class PublicAccountRetrieve(serializers.ModelSerializer):
+class PublicAccountRetrieve(PublicAccountList):
+    pp_images = PPImageSerializer(many=True)
 
     class Meta:
         model = PublicAccount
-        fields = [
-            "id",
-            "townhall_id",
-            "townhall",
-            "period_pp",
-            "status"
-        ]
+        fields = PublicAccountList.Meta.fields + ["pp_images"]
 
 
 class RowSerializer(serializers.ModelSerializer):

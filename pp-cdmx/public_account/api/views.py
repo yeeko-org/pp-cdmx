@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from api.mixins import (
-    MultiSerializerListRetrieveMix, MultiSerializerListRetrieveUpdateMix)
+    MultiSerializerListRetrieveUpdateMix)
 from api.mixins import MultiSerializerListRetrieveUpdateMix as ListRetrieveUpdateMix
 from api.pagination import (
     StandardResultsSetPagination,
@@ -125,6 +125,7 @@ class PublicAccountSetView(MultiSerializerListRetrieveUpdateMix):
     queryset = PublicAccount.objects.all()\
         .prefetch_related("townhall", "period_pp")
     action_serializers = {
+        "retrieve": serializers.PublicAccountRetrieve,
         "update": serializers.PublicAccountUpdateSerializer
     }
 
@@ -236,22 +237,22 @@ class OrphanRowsView(views.APIView):
         from scripts.data_cleaner_v2 import saveFinalProjSuburb_v2
         public_account = self.get_object(request, **kwargs)
         orphan_rows = public_account.get_orphan_rows()
-        seqs = {data.get("seq"): data for data in orphan_rows}
+        orphan_seqs = {data.get("seq"): data for data in orphan_rows}
         done_seqs = []
         match_review = request.data.get("match_review")
         comment_match = request.data.get("comment_match")
 
         for match in request.data.get("matches", []):
-            suburb = match.get("suburb")
-            seq = match.get("seq")
-            seq_data = seqs.get(seq)
-            if not seq_data:
+            match_suburb = match.get("suburb")
+            match_seq = match.get("seq")
+            match_seq_data = orphan_seqs.get(match_seq)
+            if not match_seq_data:
                 continue
 
-            saveFinalProjSuburb_v2(suburb, seq_data, simil=-1)
-            done_seqs.append(seq)
+            saveFinalProjSuburb_v2(match_suburb, match_seq_data, simil=-1)
+            done_seqs.append(match_seq)
 
-        orphan_rows = [seq_data for seq, seq_data in seqs.items()
+        orphan_rows = [seq_data for seq, seq_data in orphan_seqs.items()
                        if seq not in done_seqs]
         if match_review:
             public_account.match_review = True
