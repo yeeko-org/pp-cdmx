@@ -150,7 +150,7 @@ class PublicAccountSetView(MultiSerializerListRetrieveUpdateMix):
             queryset = queryset.filter(period_pp__year=year)
 
         return queryset.prefetch_related(
-            "townhall", "period_pp", "pp_images")
+            "townhall", "period_pp")
 
 
 class ImageRefsView(views.APIView):
